@@ -564,9 +564,20 @@ async function sendTip(size = 'small') {
  * Calls sdk.actions.ready() IMMEDIATELY when inside Mini App
  * Per Farcaster docs: must call ready() as soon as app loads
  * https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display
+ * 
+ * NOTE: This may be redundant with the bootstrap script in index.html,
+ * but provides additional safety for other SDK features.
  */
 async function failsafeReadyFlow() {
   try {
+    // Check if bootstrap script already called ready()
+    if (typeof window.__cb_ready_called !== 'undefined' && window.__cb_ready_called) {
+      console.log('[cbTARO miniapp] Ready already called by bootstrap - skipping');
+      // Still initialize for other features
+      await initFarcasterMiniApp();
+      return;
+    }
+    
     // Step 1: Detect environment IMMEDIATELY (SDK already imported)
     const inMiniApp = await isInMiniApp();
     window.FarcasterMiniApp.isInMiniApp = inMiniApp;
@@ -630,11 +641,21 @@ window.fcCopyToClipboard = copyToClipboardFallback;
 window.TIP_AMOUNTS = TIP_AMOUNTS;
 window.TIP_RECIPIENT = TIP_RECIPIENT;
 
-// IMMEDIATE AUTO-INITIALIZATION
-// Call ready() IMMEDIATELY when module loads (don't wait for DOM)
-// Per Farcaster docs: must call ready() as soon as app loads
-// https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display
-console.log('[cbTARO miniapp] Module loaded - executing failsafe ready flow');
-failsafeReadyFlow().catch(err => {
-  console.error('[cbTARO miniapp] Fatal error in failsafe flow:', err);
-});
+// DEFERRED AUTO-INITIALIZATION
+// Bootstrap script in index.html handles ready() call
+// This provides additional SDK features (context, wallet, etc.)
+console.log('[cbTARO miniapp] Module loaded - will initialize after DOM ready');
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[cbTARO miniapp] DOM ready - initializing SDK features');
+    failsafeReadyFlow().catch(err => {
+      console.error('[cbTARO miniapp] Fatal error in failsafe flow:', err);
+    });
+  });
+} else {
+  // DOM already ready
+  console.log('[cbTARO miniapp] DOM already ready - initializing SDK features');
+  failsafeReadyFlow().catch(err => {
+    console.error('[cbTARO miniapp] Fatal error in failsafe flow:', err);
+  });
+}

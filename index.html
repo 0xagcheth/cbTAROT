@@ -2376,5 +2376,52 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   }
 }
     </style>
+
+    <!-- Farcaster Mini App Ready Bootstrap (Isolated Failsafe) -->
+    <!-- This ensures ready() is called even if miniapp.js fails -->
+    <!-- Per docs: https://miniapps.farcaster.xyz/docs/sdk/actions/ready -->
+    <script type="module">
+      import { sdk } from "https://esm.sh/@farcaster/miniapp-sdk";
+
+      let __cb_ready_called = false;
+
+      async function __cb_call_ready(reason) {
+        if (__cb_ready_called) return;
+        __cb_ready_called = true;
+        try {
+          if (!sdk?.actions?.ready) {
+            console.warn("[cbTARO bootstrap] sdk.actions.ready not available");
+            return;
+          }
+          // wait for a paint so UI is visible
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          await sdk.actions.ready();
+          console.log("[cbTARO bootstrap] ✅ ready() called:", reason);
+        } catch (e) {
+          console.warn("[cbTARO bootstrap] ready() failed:", e);
+        }
+      }
+
+      async function __cb_bootstrap_ready() {
+        try {
+          // Best effort: only call inside mini app when detector exists
+          if (typeof sdk?.isInMiniApp === "function") {
+            const inMiniApp = await sdk.isInMiniApp();
+            console.log("[cbTARO bootstrap] isInMiniApp:", inMiniApp);
+            if (!inMiniApp) return;
+          }
+          await __cb_call_ready("bootstrap");
+        } catch (e) {
+          // If detection throws, still try ready to avoid infinite splash
+          await __cb_call_ready("bootstrap-fallback");
+        }
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", __cb_bootstrap_ready, { once: true });
+      } else {
+        __cb_bootstrap_ready();
+      }
+    </script>
 </body>
 </html>
