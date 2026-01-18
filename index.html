@@ -101,6 +101,20 @@
         'FIVE OF SWORDS': 'FIVE OF SWARDS'
       };
       
+      // Payment constants
+      const PAYMENT_TO = "0xD4bF185c846F6CAbDaa34122d0ddA43765E754A6";
+      const PRICE_ONE = "0.0003";     // Single card
+      const PRICE_THREE = "0.0005";   // 3 cards
+      const PRICE_CUSTOM = "0.001";   // Custom reading
+      
+      // ETH to wei(hex) converter (no libraries needed)
+      function ethToWeiHex(ethStr) {
+        const [whole, frac = ""] = String(ethStr).split(".");
+        const fracPadded = (frac + "0".repeat(18)).slice(0, 18);
+        const wei = BigInt(whole || "0") * 10n ** 18n + BigInt(fracPadded || "0");
+        return "0x" + wei.toString(16);
+      }
+      
       const cardImagePath=(name) => {
         let fileName=name.toUpperCase();
         // Apply corrections if needed
@@ -232,6 +246,11 @@
         const [isConnecting, setIsConnecting]=useState(false);
         const [userFid, setUserFid]=useState(null);
         const [userAvatarUrl, setUserAvatarUrl]=useState("");
+        
+        // Payment states
+        const [isPaying, setIsPaying]=useState(false);
+        const [lastTx, setLastTx]=useState("");
+        const [payError, setPayError]=useState("");
 
         useEffect(() => {
           return () => {
@@ -333,6 +352,54 @@
             setWalletError(e?.message || String(e));
           } finally {
             setIsConnecting(false);
+          }
+        }
+
+        async function pay(ethAmount) {
+          setPayError("");
+          setIsPaying(true);
+
+          try {
+            const provider = await getProvider();
+            if (!provider) throw new Error("No wallet provider");
+
+            // 1) Ensure account is connected
+            const accounts = await provider.request({ method: "eth_requestAccounts" });
+            const from = accounts?.[0];
+            if (!from) throw new Error("No account connected");
+            
+            // Update wallet address if not set
+            if (!walletAddress) setWalletAddress(from);
+
+            // 2) Optional: Check network (Base = 0x2105 / 8453)
+            const chainId = await provider.request({ method: "eth_chainId" });
+            // Uncomment to enforce Base network:
+            // if (chainId !== "0x2105") throw new Error("Please switch to Base network");
+
+            // 3) Build transaction
+            const tx = {
+              from,
+              to: PAYMENT_TO,
+              value: ethToWeiHex(ethAmount),
+              // gas/maxFeePerGas usually auto-estimated by wallet
+            };
+
+            // 4) Send transaction
+            const txHash = await provider.request({
+              method: "eth_sendTransaction",
+              params: [tx],
+            });
+
+            setLastTx(txHash || "");
+            console.log("Payment tx:", txHash);
+            return txHash;
+          } catch (e) {
+            const errorMsg = e?.message || String(e);
+            setPayError(errorMsg);
+            console.error("Payment failed:", errorMsg);
+            throw e;
+          } finally {
+            setIsPaying(false);
           }
         }
 
@@ -487,7 +554,24 @@ Important: This must be a unique interpretation for this specific card spread. M
           setShowAiPanel(false);
 
           if (spread === "ONE" || spread === "THREE" || spread === "CUSTOM") {
-            await startSpreadAnimation(spread);
+            try {
+              // Payment gating: charge based on spread type
+              let price;
+              if (spread === "ONE") price = PRICE_ONE;
+              else if (spread === "THREE") price = PRICE_THREE;
+              else if (spread === "CUSTOM") price = PRICE_CUSTOM;
+
+              // Request payment
+              const txHash = await pay(price);
+              console.log(`Payment successful for ${spread}:`, txHash);
+
+              // Proceed with reading after successful payment
+              await startSpreadAnimation(spread);
+            } catch (e) {
+              // Payment failed or cancelled - don't proceed
+              console.error("Payment failed, reading cancelled:", e);
+              setSelectedSpread(null);
+            }
           }
         };
 
@@ -757,9 +841,9 @@ Important: This must be a unique interpretation for this specific card spread. M
                                   }
                                   handleSelectSpread("CUSTOM");
                                 }}
-                                disabled={isLoading || !userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3}
+                                disabled={isLoading || isPaying || !userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3}
                               >
-                                {isLoading ? "Reading..." : "✨"}
+                                {isPaying ? "Paying..." : isLoading ? "Reading..." : "✨"}
                               </button>
                             </div>
                           </div>
@@ -793,11 +877,11 @@ Important: This must be a unique interpretation for this specific card spread. M
                             <div
                               className="spread-option single-card-option"
                               onClick={withClick((e) => {
-                                if (!isLoading) {
+                                if (!isLoading && !isPaying) {
                                   handleSelectSpread("ONE");
                                 }
                               })}
-                              style={{ opacity: isLoading ? 0.5 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+                              style={{ opacity: (isLoading || isPaying) ? 0.5 : 1, cursor: (isLoading || isPaying) ? 'not-allowed' : 'pointer' }}
                             >
                               <div className="spread-preview">
                                 <div className="preview-card single-preview-card">
@@ -815,16 +899,24 @@ Important: This must be a unique interpretation for this specific card spread. M
                                   </div>
                                 </div>
                               </div>
+                              <div style={{
+                                fontSize: '0.75rem',
+                                color: 'rgba(255,255,255,0.7)',
+                                marginTop: '0.5rem',
+                                textAlign: 'center'
+                              }}>
+                                {PRICE_ONE} ETH
+                              </div>
                             </div>
 
                             <div
                               className="spread-option three-cards-option"
                               onClick={withClick((e) => {
-                                if (!isLoading) {
+                                if (!isLoading && !isPaying) {
                                   handleSelectSpread("THREE");
                                 }
                               })}
-                              style={{ opacity: isLoading ? 0.5 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+                              style={{ opacity: (isLoading || isPaying) ? 0.5 : 1, cursor: (isLoading || isPaying) ? 'not-allowed' : 'pointer' }}
                             >
                               <div className="spread-preview">
                                 <div className="preview-card three-preview-card left-card">
@@ -864,14 +956,52 @@ Important: This must be a unique interpretation for this specific card spread. M
                                   </div>
                                 </div>
                               </div>
+                              <div style={{
+                                fontSize: '0.75rem',
+                                color: 'rgba(255,255,255,0.7)',
+                                marginTop: '0.5rem',
+                                textAlign: 'center'
+                              }}>
+                                {PRICE_THREE} ETH
+                              </div>
                             </div>
                           </div>
+
+                          {/* Payment status indicator */}
+                          {isPaying && (
+                            <div style={{
+                              textAlign: 'center',
+                              color: '#ffd700',
+                              fontSize: '0.85rem',
+                              marginTop: '0.5rem',
+                              padding: '0.5rem',
+                              background: 'rgba(255,215,0,0.1)',
+                              borderRadius: '8px'
+                            }}>
+                              💳 Processing payment...
+                            </div>
+                          )}
+                          
+                          {payError && (
+                            <div style={{
+                              textAlign: 'center',
+                              color: '#ff6b6b',
+                              fontSize: '0.8rem',
+                              marginTop: '0.5rem',
+                              padding: '0.5rem',
+                              background: 'rgba(255,107,107,0.1)',
+                              borderRadius: '8px'
+                            }}>
+                              ⚠️ {payError}
+                            </div>
+                          )}
 
                           <div className="modal-bottom-buttons">
                             <button
                               className="custom-reading-overlay-button"
-                              disabled={isLoading}
+                              disabled={isLoading || isPaying}
                               onClick={() => { playButtonSound(); setGameStage("custom"); }}
+                              style={{ opacity: (isLoading || isPaying) ? 0.5 : 1 }}
                             >
                               <img
                                 src={ASSET("Assets/imagine/cr.png")}
@@ -879,6 +1009,14 @@ Important: This must be a unique interpretation for this specific card spread. M
                                 className="custom-reading-underlay-image"
                               />
                             </button>
+                            <div style={{
+                              fontSize: '0.75rem',
+                              color: 'rgba(255,255,255,0.7)',
+                              marginTop: '0.5rem',
+                              textAlign: 'center'
+                            }}>
+                              Custom: {PRICE_CUSTOM} ETH
+                            </div>
                           </div>
                         </div>
                       )}
