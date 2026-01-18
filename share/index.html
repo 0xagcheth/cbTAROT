@@ -12,8 +12,11 @@
     <meta property="og:url" content="https://0xagcheth.github.io/cbTARO/share">
     <meta property="og:type" content="website">
     
-    <!-- Farcaster Mini App Meta Tag -->
-    <meta name="fc:miniapp" content="true">
+    <!-- Farcaster Mini App Embed (per spec: content must be stringified JSON) -->
+    <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
+    
+    <!-- Farcaster Frame Meta Tag (backward compatible) -->
+    <meta name="fc:frame" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
     
     <style>
         * {

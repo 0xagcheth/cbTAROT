@@ -25,78 +25,149 @@ A Farcaster Mini App for AI-powered mystical taro readings. Works inside Farcast
 
 ## Farcaster Mini App Setup
 
-### CRITICAL: Domain & Manifest Configuration
+### Two Components Required
 
-Farcaster Mini Apps require a manifest at:
-```
-https://<domain>/.well-known/farcaster.json
+Farcaster Mini Apps need **two things** to work:
+
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| **Embed Meta Tag** | Shows preview in Farcaster feed | `<meta name="fc:miniapp">` in HTML `<head>` |
+| **Manifest File** | Domain verification & app config | `https://<domain>/.well-known/farcaster.json` |
+
+### Component 1: Embed Meta Tag (DONE in this repo)
+
+The `fc:miniapp` meta tag in `index.html` contains stringified JSON per spec:
+```html
+<meta name="fc:miniapp" content='{"version":"1","imageUrl":"...","button":{...}}' />
 ```
 
-The `accountAssociation.payload` domain in this app is:
+**Test the embed** using Farcaster Embed Tool:
 ```
-0xagcheth.github.io
+https://warpcast.com/~/developers/embeds?url=https://0xagcheth.github.io/cbTARO/
 ```
 
-**Therefore, the VALID manifest MUST be hosted at:**
+### Component 2: Domain Manifest (REQUIRES SEPARATE REPO)
+
+The manifest **MUST** be at the root domain because `accountAssociation.payload` specifies:
+```
+domain: "0xagcheth.github.io"
+```
+
+Therefore it must be served at:
 ```
 https://0xagcheth.github.io/.well-known/farcaster.json
 ```
 
-### GitHub Pages Limitation
+**Test the manifest** using Farcaster Manifest Tool:
+```
+https://warpcast.com/~/developers/manifest?domain=0xagcheth.github.io
+```
 
-This repository (`cbTARO`) is deployed as a GitHub Pages **PROJECT PAGE** at:
+---
+
+### WHY THIS REPO CANNOT HOST THE MANIFEST
+
+This repo (`cbTARO`) is a GitHub Pages **PROJECT PAGE**:
 ```
 https://0xagcheth.github.io/cbTARO/
 ```
 
-**Project pages CANNOT serve files at the root domain** (`/.well-known`). This repo can only serve files under `/cbTARO/`.
+Project pages can only serve files under `/cbTARO/`. They **cannot** serve files at the root domain (`/.well-known/`).
 
-### Solution: Create a User GitHub Pages Site
+---
 
-To satisfy the domain association requirement, you must create a **separate repository**:
+### SOLUTION: Create a User GitHub Pages Site
 
-#### Step-by-Step Instructions:
+You must create a **separate repository** named exactly `0xagcheth.github.io`:
 
-1. **Create a new repository** named exactly:
-   ```
-   0xagcheth.github.io
-   ```
+#### Step 1: Create the Repository
 
-2. **In that repository**, create the following files:
-   ```
-   .nojekyll              # Empty file - required!
-   .well-known/
-   └── farcaster.json     # Copy from this repo
-   ```
+1. Go to https://github.com/new
+2. Repository name: `0xagcheth.github.io` (exactly this)
+3. Make it **Public**
+4. Initialize with a README (optional)
 
-3. **Copy the manifest** from this repo's `.well-known/farcaster.json` into the new repository.
+#### Step 2: Add Required Files
 
-4. **Enable GitHub Pages** on the `0xagcheth.github.io` repository:
-   - Go to Settings → Pages
-   - Source: Deploy from a branch
-   - Branch: main / root
+Create these files in the new repo:
 
-5. **Verify the manifest** is accessible at:
-   ```
-   https://0xagcheth.github.io/.well-known/farcaster.json
-   ```
+**File: `.nojekyll`** (empty file)
+```
+(no content - just create an empty file)
+```
+
+**File: `.well-known/farcaster.json`**
+```json
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjIxMDUxLCJ0eXBlIjoiYXV0aCIsImtleSI6IjB4RTM2NmQ2QTNiRTliNkM5NDI4MjBENzUzNjcwY0ZjMDA5NjMwODdEMCJ9",
+    "payload": "eyJkb21haW4iOiIweGFnY2hldGguZ2l0aHViLmlvIn0",
+    "signature": "aXwD4QtCu7BgjxmwDT/ZXDB8ebe6rUCElNgM0wjGvlV7Yj4HQTbofutI299kPpfQvoB6Shpj117ePpFxyfDRSxs="
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "cbTARO",
+    "homeUrl": "https://0xagcheth.github.io/cbTARO/",
+    "iconUrl": "https://0xagcheth.github.io/cbTARO/i.png",
+    "splashImageUrl": "https://0xagcheth.github.io/cbTARO/s.png",
+    "splashBackgroundColor": "#0b1020",
+    "subtitle": "Mystical taro reading on Base",
+    "description": "Draw taro cards, explore interpretations, and share your reading on Farcaster.",
+    "primaryCategory": "games",
+    "tags": ["taro", "cards", "mystic", "base", "farcaster"],
+    "tagline": "Reveal your Taro",
+    "ogTitle": "cbTARO — Onchain Taro Reading",
+    "ogDescription": "Draw a taro card and share your mystical reading on Farcaster.",
+    "ogImageUrl": "https://0xagcheth.github.io/cbTARO/og.png",
+    "buttonTitle": "Open cbTARO",
+    "imageUrl": "https://0xagcheth.github.io/cbTARO/og.png",
+    "castShareUrl": "https://0xagcheth.github.io/cbTARO/share"
+  }
+}
+```
+
+#### Step 3: Enable GitHub Pages
+
+1. Go to repo Settings → Pages
+2. Source: **Deploy from a branch**
+3. Branch: **main** (or master)
+4. Folder: **/ (root)**
+5. Click **Save**
+
+#### Step 4: Wait for Deployment
+
+GitHub Pages takes 1-2 minutes to deploy. Check the Actions tab for status.
+
+#### Step 5: Verify
+
+Test both URLs:
+```
+https://0xagcheth.github.io/.well-known/farcaster.json
+https://warpcast.com/~/developers/manifest?domain=0xagcheth.github.io
+```
+
+---
 
 ### Why .nojekyll is Required
 
-GitHub Pages uses Jekyll by default, which ignores files and directories starting with a dot (like `.well-known`). The `.nojekyll` file disables Jekyll processing, ensuring the `.well-known` directory is served correctly.
+GitHub Pages uses Jekyll by default, which **ignores** files/directories starting with `.` (like `.well-known`).
 
-**Both repositories need `.nojekyll`:**
-- `0xagcheth.github.io` repo (for the manifest)
-- `cbTARO` repo (already included)
+The `.nojekyll` file disables Jekyll, ensuring `.well-known` is served.
+
+**Both repos need `.nojekyll`:**
+- `0xagcheth.github.io` repo ← YOU MUST CREATE THIS
+- `cbTARO` repo ← already included
+
+---
 
 ### Convenience Copy in This Repo
 
-This repo includes a copy of the manifest at:
+This repo has a copy of the manifest at:
 ```
 https://0xagcheth.github.io/cbTARO/.well-known/farcaster.json
 ```
 
-**Note:** This copy does NOT satisfy domain association. It is only for reference and testing. The real manifest must be at the root domain.
+**This does NOT satisfy domain verification.** It's only for reference.
 
 ---
 
