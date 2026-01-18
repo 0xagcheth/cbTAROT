@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>cbTARO - Mystical Taro Reading</title>
+    
+    <!-- Farcaster Mini App metadata -->
+    <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
+    <meta name="fc:frame" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
+    
+    <!-- Open Graph metadata for social sharing -->
+    <meta property="og:title" content="cbTARO — Onchain Taro Reading" />
+    <meta property="og:description" content="Draw a taro card and share your mystical reading on Farcaster." />
+    <meta property="og:image" content="https://0xagcheth.github.io/cbTARO/og.png" />
+    <meta property="og:url" content="https://0xagcheth.github.io/cbTARO/" />
+    <meta property="og:type" content="website" />
 </head>
 <body>
     <script>
@@ -61,6 +72,19 @@
     <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7.26.2/babel.min.js"></script>
+
+    <!-- Farcaster Mini App SDK integration -->
+    <script type="module">
+      import { sdk } from "https://esm.sh/@farcaster/miniapp-sdk";
+      
+      // Make SDK available globally for React components
+      window.__FC_SDK__ = sdk;
+      
+      // Optional: detect if running in Mini App context
+      window.__IS_MINIAPP__ = !!sdk.context;
+      
+      console.log('Farcaster SDK loaded:', window.__IS_MINIAPP__ ? 'Running in Mini App' : 'Running in browser');
+    </script>
 
     <script type="text/babel">
       const { useState, useRef, useEffect }=React;
@@ -223,6 +247,27 @@
             document.body.style.overflow = '';
           };
         }, [showGallery, activeCard, aiInterpretation, showAiPanel]);
+
+        // Farcaster Mini App: notify ready state after initial render
+        useEffect(() => {
+          (async () => {
+            try {
+              const sdk = window.__FC_SDK__;
+              if (!sdk) {
+                console.log('Farcaster SDK not available (normal in browser mode)');
+                return;
+              }
+
+              // Wait for first render to complete before hiding splash screen
+              await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+              
+              await sdk.actions.ready();
+              console.log('Farcaster Mini App ready signal sent');
+            } catch (error) {
+              console.warn('Farcaster ready() failed:', error);
+            }
+          })();
+        }, []);
 
         const playSound=(path,vol=0.3) => {
           if(!soundEnabled)return;
