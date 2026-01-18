@@ -103,9 +103,10 @@
       
       // Payment constants
       const PAYMENT_TO = "0xD4bF185c846F6CAbDaa34122d0ddA43765E754A6";
-      const PRICE_ONE = "0.0003";     // Single card
+      const PRICE_ONE = "0.0003";     // Single card (FREE)
       const PRICE_THREE = "0.0005";   // 3 cards
       const PRICE_CUSTOM = "0.001";   // Custom reading
+      const REQUIRED_CHAIN_ID = "0x2105"; // Base mainnet (8453) - uncomment enforcement if needed
       
       // ETH to wei(hex) converter (no libraries needed)
       function ethToWeiHex(ethStr) {
@@ -113,6 +114,15 @@
         const fracPadded = (frac + "0".repeat(18)).slice(0, 18);
         const wei = BigInt(whole || "0") * 10n ** 18n + BigInt(fracPadded || "0");
         return "0x" + wei.toString(16);
+      }
+
+      // Promise timeout wrapper
+      function withTimeout(promise, ms, label = "timeout") {
+        let timeoutHandle;
+        const timeout = new Promise((_, reject) => {
+          timeoutHandle = setTimeout(() => reject(new Error(label)), ms);
+        });
+        return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutHandle));
       }
       
       const cardImagePath=(name) => {
@@ -252,6 +262,7 @@
         const [lastTx, setLastTx]=useState("");
         const [payError, setPayError]=useState("");
         const [sdkReady, setSdkReady]=useState(false);
+        const [paymentStep, setPaymentStep]=useState(""); // for debugging: "accounts", "balance", "sendTx", "receipt"
 
         useEffect(() => {
           return () => {
@@ -343,40 +354,146 @@
           return window.__FC_SDK__;
         }
 
-        async function getProvider() {
+        async function getProviderOrThrow() {
           // Wait for SDK to load if not ready
           const sdk = await waitForFarcasterSdk();
           
-          if (sdk?.wallet?.getEthereumProvider) {
-            try {
-              const provider = await sdk.wallet.getEthereumProvider();
-              console.log("Provider obtained from Farcaster SDK", {
-                hasRequest: !!provider?.request,
-                hasOn: !!provider?.on,
-                providerType: provider?.constructor?.name || typeof provider
-              });
-              return provider;
-            } catch (e) {
-              console.warn("getEthereumProvider failed:", e);
-            }
-          }
-          
-          // Fallback for browser (MetaMask, etc.)
-          if (window.ethereum?.request) {
-            console.log("Provider obtained from window.ethereum", {
-              hasRequest: !!window.ethereum?.request,
-              hasOn: !!window.ethereum?.on
+          if (!sdk?.wallet?.getEthereumProvider) {
+            console.error("No wallet provider found. SDK state:", {
+              sdkExists: !!sdk,
+              hasWallet: !!sdk?.wallet,
+              hasGetProvider: !!sdk?.wallet?.getEthereumProvider,
+              hasWindowEthereum: !!window.ethereum
             });
-            return window.ethereum;
+            throw new Error("Farcaster SDK wallet not available");
+          }
+
+          const provider = await sdk.wallet.getEthereumProvider();
+          console.log("Provider obtained from Farcaster SDK", {
+            hasRequest: !!provider?.request,
+            hasOn: !!provider?.on,
+            providerType: provider?.constructor?.name || typeof provider
+          });
+          
+          return provider;
+        }
+
+        async function getProvider() {
+          try {
+            return await getProviderOrThrow();
+          } catch (e) {
+            // Fallback for browser (MetaMask, etc.)
+            if (window.ethereum?.request) {
+              console.log("Provider obtained from window.ethereum (fallback)", {
+                hasRequest: !!window.ethereum?.request
+              });
+              return window.ethereum;
+            }
+            console.error("getProvider failed:", e);
+            return null;
+          }
+        }
+
+        async function getAccountsSafe(provider) {
+          setPaymentStep("accounts");
+          
+          // 1) First try without popup (check if already connected)
+          try {
+            const existing = await withTimeout(
+              provider.request({ method: "eth_accounts" }),
+              2500,
+              "eth_accounts timeout"
+            );
+            if (existing?.[0]) {
+              console.log("PAY: Already connected accounts:", existing);
+              return existing;
+            }
+          } catch (e) {
+            console.warn("PAY: eth_accounts check failed:", e);
+          }
+
+          // 2) Then request connection (popup)
+          console.log("PAY: Requesting wallet connection...");
+          return await withTimeout(
+            provider.request({ method: "eth_requestAccounts" }),
+            15000,
+            "Wallet connect request timed out. Please try again."
+          );
+        }
+
+        async function ensureChain(provider) {
+          if (!REQUIRED_CHAIN_ID) return;
+          
+          const chainId = await provider.request({ method: "eth_chainId" });
+          console.log("PAY: Current chainId:", chainId);
+          
+          if (chainId === REQUIRED_CHAIN_ID) return;
+
+          console.log("PAY: Switching to required chain:", REQUIRED_CHAIN_ID);
+          // Uncomment to enforce chain switch:
+          // await provider.request({
+          //   method: "wallet_switchEthereumChain",
+          //   params: [{ chainId: REQUIRED_CHAIN_ID }],
+          // });
+        }
+
+        async function ensureEnoughBalance(provider, address, neededEth) {
+          setPaymentStep("balance");
+          
+          const balHex = await provider.request({
+            method: "eth_getBalance",
+            params: [address, "latest"],
+          });
+
+          const balanceWei = BigInt(balHex);
+          const neededWei = BigInt(ethToWeiHex(neededEth));
+          
+          const balanceEth = Number(balanceWei) / 1e18;
+          console.log("PAY: Balance check:", {
+            balance: balanceEth.toFixed(6) + " ETH",
+            needed: neededEth + " ETH",
+            enough: balanceWei >= neededWei
+          });
+
+          if (balanceWei < neededWei) {
+            throw new Error(`Insufficient balance. Need ${neededEth} ETH + gas. You have ${balanceEth.toFixed(6)} ETH.`);
+          }
+        }
+
+        async function waitReceipt(provider, txHash, maxMs = 90000) {
+          setPaymentStep("receipt");
+          console.log("PAY: Waiting for transaction confirmation...");
+          
+          const start = Date.now();
+          let attempts = 0;
+          
+          while (Date.now() - start < maxMs) {
+            attempts++;
+            try {
+              const receipt = await provider.request({
+                method: "eth_getTransactionReceipt",
+                params: [txHash],
+              });
+              
+              if (receipt) {
+                console.log("PAY: Receipt received after", attempts, "attempts:", receipt);
+                
+                // Check transaction status
+                if (receipt.status && receipt.status !== "0x1") {
+                  throw new Error("Transaction failed on-chain");
+                }
+                
+                return receipt;
+              }
+            } catch (e) {
+              if (e.message.includes("failed on-chain")) throw e;
+              console.warn("PAY: Receipt check attempt", attempts, "failed:", e);
+            }
+            
+            await new Promise(r => setTimeout(r, 2000)); // Check every 2 seconds
           }
           
-          console.error("No wallet provider found. SDK state:", {
-            sdkExists: !!sdk,
-            hasWallet: !!sdk?.wallet,
-            hasGetProvider: !!sdk?.wallet?.getEthereumProvider,
-            hasWindowEthereum: !!window.ethereum
-          });
-          return null;
+          throw new Error("Transaction confirmation timeout. Check your wallet.");
         }
 
         async function connectWallet() {
@@ -400,65 +517,69 @@
         async function pay(ethAmount) {
           setPayError("");
           setIsPaying(true);
+          setPaymentStep("");
 
           try {
-            console.log("PAY: Starting payment for", ethAmount, "ETH");
+            console.log("PAY: 🚀 Starting payment for", ethAmount, "ETH");
             
-            const provider = await getProvider();
-            if (!provider) {
-              throw new Error("Wallet provider not found. Farcaster SDK not ready or wallet not available.");
-            }
+            // Step 1: Get provider
+            const provider = await getProviderOrThrow();
+            console.log("PAY: ✓ Provider ready");
 
-            console.log("PAY: Provider ready, has request:", !!provider?.request);
-
-            // 1) Ensure account is connected
-            console.log("PAY: Requesting accounts...");
-            const accounts = await provider.request({ method: "eth_requestAccounts" });
+            // Step 2: Get accounts (with timeout)
+            const accounts = await getAccountsSafe(provider);
             const from = accounts?.[0];
             if (!from) throw new Error("No account connected");
             
-            console.log("PAY: Connected account:", from);
-            
-            // Update wallet address if not set
+            console.log("PAY: ✓ Connected account:", from);
             if (!walletAddress) setWalletAddress(from);
 
-            // 2) Check network
-            let chainId;
-            try {
-              chainId = await provider.request({ method: "eth_chainId" });
-              console.log("PAY: Current chainId:", chainId);
-            } catch (e) {
-              console.warn("PAY: chainId check failed:", e);
-            }
-            
-            // Uncomment to enforce Base network (0x2105 = 8453):
-            // if (chainId !== "0x2105") throw new Error("Please switch to Base network");
+            // Step 3: Check/switch chain
+            await ensureChain(provider);
+            console.log("PAY: ✓ Chain verified");
 
-            // 3) Build transaction
+            // Step 4: Check balance
+            await ensureEnoughBalance(provider, from, ethAmount);
+            console.log("PAY: ✓ Balance sufficient");
+
+            // Step 5: Build and send transaction
+            setPaymentStep("sendTx");
             const valueWei = ethToWeiHex(ethAmount);
             const tx = {
               from,
               to: PAYMENT_TO,
               value: valueWei,
-              // gas/maxFeePerGas usually auto-estimated by wallet
             };
 
-            console.log("PAY: Transaction prepared:", { to: PAYMENT_TO, ethAmount, valueWei });
+            console.log("PAY: 💳 Sending transaction...", { to: PAYMENT_TO, ethAmount, valueWei });
+            
+            const txHash = await withTimeout(
+              provider.request({
+                method: "eth_sendTransaction",
+                params: [tx],
+              }),
+              60000, // 60 seconds for user to confirm
+              "Transaction request timed out. Please try again."
+            );
 
-            // 4) Send transaction
-            console.log("PAY: Requesting eth_sendTransaction...");
-            const txHash = await provider.request({
-              method: "eth_sendTransaction",
-              params: [tx],
-            });
+            if (!txHash) throw new Error("No transaction hash returned");
+            
+            console.log("PAY: ✓ Transaction sent! Hash:", txHash);
+            setLastTx(txHash);
 
-            setLastTx(txHash || "");
-            console.log("PAY: ✅ Payment successful! txHash:", txHash);
+            // Step 6: Wait for confirmation
+            console.log("PAY: ⏳ Waiting for confirmation...");
+            const receipt = await waitReceipt(provider, txHash, 90000);
+            
+            console.log("PAY: ✅ Payment confirmed! Block:", receipt.blockNumber);
+            setPaymentStep("complete");
+            
             return txHash;
           } catch (e) {
             const errorMsg = e?.message || String(e);
             setPayError(errorMsg);
-            console.error("PAY: ❌ Payment failed:", errorMsg, e);
+            setPaymentStep("error");
+            console.error("PAY: ❌ Payment failed at step:", paymentStep || "init", errorMsg, e);
             throw e;
           } finally {
             setIsPaying(false);
@@ -1361,30 +1482,109 @@ Important: This must be a unique interpretation for this specific card spread. M
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#fff"
+                color: "#fff",
+                padding: "2rem"
               }}>
                 <div style={{
                   fontSize: "48px",
                   marginBottom: "1rem",
                   animation: "pulse 1.5s ease-in-out infinite"
                 }}>
-                  💳
+                  {paymentStep === "receipt" ? "⏳" : 
+                   paymentStep === "sendTx" ? "💳" :
+                   paymentStep === "balance" ? "💰" :
+                   paymentStep === "accounts" ? "🔐" : "💳"}
                 </div>
                 <div style={{ fontSize: "1.2rem", fontWeight: "bold", marginBottom: "0.5rem" }}>
-                  Processing Payment
+                  {paymentStep === "receipt" ? "Confirming Transaction" :
+                   paymentStep === "sendTx" ? "Processing Payment" :
+                   paymentStep === "balance" ? "Checking Balance" :
+                   paymentStep === "accounts" ? "Connecting Wallet" : "Processing Payment"}
                 </div>
-                <div style={{ fontSize: "0.9rem", opacity: 0.8 }}>
-                  Please confirm in your wallet...
+                <div style={{ fontSize: "0.9rem", opacity: 0.8, textAlign: "center", maxWidth: "400px" }}>
+                  {paymentStep === "receipt" ? "Waiting for blockchain confirmation..." :
+                   paymentStep === "sendTx" ? "Please confirm in your wallet..." :
+                   paymentStep === "balance" ? "Verifying your ETH balance..." :
+                   paymentStep === "accounts" ? "Please connect your wallet..." : "Please wait..."}
                 </div>
+                {paymentStep === "receipt" && (
+                  <div style={{ 
+                    fontSize: "0.75rem", 
+                    opacity: 0.6, 
+                    marginTop: "1rem",
+                    textAlign: "center"
+                  }}>
+                    This may take up to 90 seconds
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Optional: show error for debugging */}
-            {walletError ? (
-              <div style={{ position:"fixed", left:"50%", bottom:"60px", transform:"translateX(-50%)", zIndex:9999, fontSize:"12px", color:"#fff", opacity:0.8, background:"rgba(255,0,0,0.2)", padding:"6px 10px", borderRadius:"8px" }}>
+            {/* Payment error display */}
+            {payError && !isPaying && (
+              <div style={{ 
+                position:"fixed", 
+                left:"50%", 
+                top:"20px",
+                transform:"translateX(-50%)", 
+                zIndex:9999, 
+                fontSize:"13px", 
+                color:"#fff", 
+                background:"rgba(255,50,50,0.9)", 
+                padding:"12px 16px", 
+                borderRadius:"12px",
+                maxWidth:"90vw",
+                textAlign:"center",
+                boxShadow:"0 4px 12px rgba(0,0,0,0.3)"
+              }}>
+                ⚠️ {payError}
+              </div>
+            )}
+
+            {/* Wallet connection error */}
+            {walletError && !isConnecting && (
+              <div style={{ 
+                position:"fixed", 
+                left:"50%", 
+                bottom:"70px", 
+                transform:"translateX(-50%)", 
+                zIndex:9999, 
+                fontSize:"11px", 
+                color:"#fff", 
+                opacity:0.8, 
+                background:"rgba(255,0,0,0.2)", 
+                padding:"6px 10px", 
+                borderRadius:"8px",
+                maxWidth:"90vw",
+                textAlign:"center"
+              }}>
                 {walletError}
               </div>
-            ) : null}
+            )}
+
+            {/* Debug info - uncomment to see diagnostic info */}
+            {/* 
+            {sdkReady && (
+              <div style={{
+                position:"fixed",
+                bottom:"70px",
+                right:"12px",
+                zIndex:9999,
+                fontSize:"10px",
+                color:"#fff",
+                background:"rgba(0,0,0,0.7)",
+                padding:"8px",
+                borderRadius:"8px",
+                fontFamily:"monospace",
+                lineHeight:"1.4"
+              }}>
+                <div>SDK: {sdkReady ? "✓" : "⏳"}</div>
+                <div>Wallet: {walletAddress ? shorten(walletAddress) : "—"}</div>
+                <div>Step: {paymentStep || "idle"}</div>
+                <div>Paying: {isPaying ? "yes" : "no"}</div>
+              </div>
+            )}
+            */}
           </div>
         );
       }
