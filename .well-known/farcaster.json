@@ -1,0 +1,18 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjEyMzQ1NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweGFiY2RlZjEyMzQ1Njc4OTAifQ",
+    "payload": "eyJkb21haW4iOiIweGFnY2hldGguZ2l0aHViLmlvIn0",
+    "signature": "REPLACE_WITH_YOUR_ACTUAL_SIGNATURE"
+  },
+  "frame": {
+    "version": "1",
+    "name": "cbTARO",
+    "iconUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/i.png",
+    "homeUrl": "https://0xagcheth.github.io/cbTARO/",
+    "imageUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/f.png",
+    "buttonTitle": "Get Tarot Reading",
+    "splashImageUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/s.png",
+    "splashBackgroundColor": "#1a0a2e",
+    "webhookUrl": ""
+  }
+}

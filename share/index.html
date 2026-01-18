@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>cbTARO - Cast Share Extension</title>
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="cbTARO - Mystical Tarot Reading" />
+    <meta property="og:description" content="Discover your destiny with AI-powered tarot readings. Get a personalized reading from a shared cast!" />
+    <meta property="og:image" content="https://0xagcheth.github.io/cbTARO/Assets/imagine/f.png" />
+    <meta property="og:url" content="https://0xagcheth.github.io/cbTARO/share/" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Farcaster Mini App Meta Tags -->
+    <meta name="fc:miniapp" content="true" />
+    
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1a0a2e 0%, #16213e 50%, #0f0f23 100%);
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #fff;
+            overflow: hidden;
+        }
+        
+        .container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: clamp(2rem, 8vw, 3.5rem);
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 
+                0 0 5px rgba(0, 123, 255, 0.8),
+                0 0 10px rgba(0, 123, 255, 0.6),
+                0 0 15px rgba(0, 123, 255, 0.4);
+            margin-bottom: 1rem;
+            animation: glow 3s ease-in-out infinite;
+        }
+        
+        @keyframes glow {
+            0%, 100% { filter: brightness(1); }
+            50% { filter: brightness(1.2); }
+        }
+        
+        .subtitle {
+            color: rgba(255, 215, 0, 0.9);
+            font-size: clamp(1rem, 4vw, 1.3rem);
+            margin-bottom: 2rem;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+        
+        .cast-info {
+            background: linear-gradient(135deg, rgba(138, 99, 210, 0.2), rgba(99, 102, 241, 0.2));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(138, 99, 210, 0.3);
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 2rem;
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .cast-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+        
+        .cast-value {
+            color: #ffd700;
+            font-size: 0.95rem;
+            word-break: break-all;
+        }
+        
+        .loading {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        
+        .cta-button {
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.6), rgba(99, 102, 241, 0.6));
+            border: 1px solid rgba(0, 123, 255, 0.5);
+            border-radius: 12px;
+            padding: 16px 32px;
+            color: #fff;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .cta-button:hover {
+            background: linear-gradient(135deg, rgba(0, 123, 255, 0.8), rgba(99, 102, 241, 0.8));
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
+        }
+        
+        .viewer-info {
+            margin-top: 2rem;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .viewer-pfp {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid rgba(138, 99, 210, 0.5);
+        }
+        
+        .viewer-name {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="logo">cbTaro</h1>
+        <p class="subtitle">Cast Share Extension</p>
+        
+        <div id="cast-info" class="cast-info hidden">
+            <div class="cast-label">Shared from cast:</div>
+            <div id="cast-hash" class="cast-value">-</div>
+            <div class="cast-label" style="margin-top: 12px;">Cast Author FID:</div>
+            <div id="cast-fid" class="cast-value">-</div>
+        </div>
+        
+        <div id="loading" class="loading">Initializing</div>
+        
+        <a id="cta-button" class="cta-button hidden" href="../">
+            Get Your Tarot Reading
+        </a>
+        
+        <div id="viewer-info" class="viewer-info hidden">
+            <img id="viewer-pfp" class="viewer-pfp" src="" alt="" />
+            <span id="viewer-name" class="viewer-name"></span>
+        </div>
+    </div>
+
+    <!-- Farcaster Mini App SDK Integration -->
+    <script type="module">
+        import { sdk, isInMiniApp } from 'https://esm.sh/@farcaster/miniapp-sdk';
+        
+        // Parse URL parameters for cast context
+        function parseShareParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                castHash: params.get('castHash') || params.get('cast_hash'),
+                castFid: params.get('castFid') || params.get('cast_fid'),
+                viewerFid: params.get('viewerFid') || params.get('viewer_fid')
+            };
+        }
+        
+        // Update UI with cast information
+        function updateCastInfo(castHash, castFid) {
+            const castInfoEl = document.getElementById('cast-info');
+            const castHashEl = document.getElementById('cast-hash');
+            const castFidEl = document.getElementById('cast-fid');
+            
+            if (castHash || castFid) {
+                castInfoEl.classList.remove('hidden');
+                castHashEl.textContent = castHash || 'Not provided';
+                castFidEl.textContent = castFid || 'Not provided';
+            }
+        }
+        
+        // Update UI with viewer information
+        function updateViewerInfo(user) {
+            if (!user) return;
+            
+            const viewerInfoEl = document.getElementById('viewer-info');
+            const viewerPfpEl = document.getElementById('viewer-pfp');
+            const viewerNameEl = document.getElementById('viewer-name');
+            
+            viewerInfoEl.classList.remove('hidden');
+            
+            if (user.pfpUrl) {
+                viewerPfpEl.src = user.pfpUrl;
+                viewerPfpEl.alt = user.displayName || user.username || `FID: ${user.fid}`;
+            } else {
+                viewerPfpEl.style.display = 'none';
+            }
+            
+            viewerNameEl.textContent = user.displayName || `@${user.username}` || `FID: ${user.fid}`;
+        }
+        
+        // Initialize the share extension
+        async function init() {
+            const loadingEl = document.getElementById('loading');
+            const ctaButton = document.getElementById('cta-button');
+            
+            try {
+                // Parse URL parameters
+                const { castHash, castFid, viewerFid } = parseShareParams();
+                
+                // Update cast info in UI
+                updateCastInfo(castHash, castFid);
+                
+                // Check if we're in Mini App environment
+                const inMiniApp = await isInMiniApp();
+                console.log('[Share Extension] In Mini App:', inMiniApp);
+                
+                if (inMiniApp) {
+                    loadingEl.textContent = 'Loading context';
+                    
+                    // Get context (viewer info)
+                    try {
+                        const context = sdk.context;
+                        if (context && context.user) {
+                            updateViewerInfo(context.user);
+                        }
+                    } catch (contextErr) {
+                        console.warn('[Share Extension] Could not get context:', contextErr);
+                    }
+                    
+                    // Signal ready to Farcaster client
+                    await sdk.actions.ready();
+                    console.log('[Share Extension] Ready signal sent');
+                }
+                
+                // Hide loading, show CTA
+                loadingEl.classList.add('hidden');
+                ctaButton.classList.remove('hidden');
+                
+                // Store cast context for the main app
+                if (castHash || castFid || viewerFid) {
+                    sessionStorage.setItem('fc_share_context', JSON.stringify({
+                        castHash,
+                        castFid,
+                        viewerFid,
+                        timestamp: Date.now()
+                    }));
+                }
+                
+            } catch (error) {
+                console.error('[Share Extension] Initialization error:', error);
+                loadingEl.textContent = 'Ready!';
+                loadingEl.classList.add('hidden');
+                ctaButton.classList.remove('hidden');
+            }
+        }
+        
+        // Run initialization
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
