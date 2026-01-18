@@ -226,6 +226,11 @@
         const abortControllerRef=useRef(null);
         const audioCacheRef=useRef(new Map());
 
+        // Wallet states
+        const [walletAddress, setWalletAddress]=useState("");
+        const [walletError, setWalletError]=useState("");
+        const [isConnecting, setIsConnecting]=useState(false);
+
         useEffect(() => {
           return () => {
             if(animTimerRef.current) clearTimeout(animTimerRef.current);
@@ -268,6 +273,53 @@
             }
           })();
         }, []);
+
+        // Auto-detect wallet on mount (if already connected)
+        useEffect(() => {
+          (async () => {
+            try {
+              const provider = await getProvider();
+              if (!provider) return;
+              const accounts = await provider.request({ method: "eth_accounts" });
+              const addr = accounts?.[0] || "";
+              if (addr) setWalletAddress(addr);
+            } catch (_) {}
+          })();
+        }, []);
+
+        // Wallet helper functions
+        function shorten(addr) {
+          if (!addr || addr.length < 10) return addr || "";
+          return addr.slice(0, 6) + "…" + addr.slice(-4);
+        }
+
+        async function getProvider() {
+          const sdk = window.__FC_SDK__;
+          if (sdk?.wallet?.getEthereumProvider) {
+            return await sdk.wallet.getEthereumProvider();
+          }
+          // Fallback for browser (MetaMask, etc.)
+          if (window.ethereum?.request) return window.ethereum;
+          return null;
+        }
+
+        async function connectWallet() {
+          setWalletError("");
+          setIsConnecting(true);
+          try {
+            const provider = await getProvider();
+            if (!provider) throw new Error("No wallet provider available");
+
+            const accounts = await provider.request({ method: "eth_requestAccounts" });
+            const addr = accounts?.[0] || "";
+            if (!addr) throw new Error("No accounts returned");
+            setWalletAddress(addr);
+          } catch (e) {
+            setWalletError(e?.message || String(e));
+          } finally {
+            setIsConnecting(false);
+          }
+        }
 
         const playSound=(path,vol=0.3) => {
           if(!soundEnabled)return;
@@ -1057,6 +1109,33 @@ Important: This must be a unique interpretation for this specific card spread. M
                 </div>
               )}
             </div>
+
+            {/* Wallet widget - bottom center */}
+            <div className="wallet-pill">
+              <span className="dot" />
+              {walletAddress ? (
+                <>
+                  <span className="addr">{shorten(walletAddress)}</span>
+                  <button
+                    onClick={() => navigator.clipboard?.writeText(walletAddress)}
+                    title="Copy address"
+                  >
+                    Copy
+                  </button>
+                </>
+              ) : (
+                <button onClick={connectWallet} disabled={isConnecting}>
+                  {isConnecting ? "Connecting…" : "Connect"}
+                </button>
+              )}
+            </div>
+
+            {/* Optional: show error for debugging */}
+            {walletError ? (
+              <div style={{ position:"fixed", left:"50%", bottom:"60px", transform:"translateX(-50%)", zIndex:9999, fontSize:"12px", color:"#fff", opacity:0.8, background:"rgba(255,0,0,0.2)", padding:"6px 10px", borderRadius:"8px" }}>
+                {walletError}
+              </div>
+            ) : null}
           </div>
         );
       }
@@ -1943,6 +2022,117 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   .taro-reading-panel,
   .taro-ai-panel{
     padding-top: calc(env(safe-area-inset-top, 0) + clamp(8px, 2vh, 20px)) !important;
+  }
+}
+
+/* =========================
+   WALLET WIDGET (Bottom Center)
+   ========================= */
+
+.wallet-pill {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 14px;
+  border-radius: 999px;
+
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  color: rgba(255,255,255,0.92);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1;
+
+  transition: all 0.2s ease;
+}
+
+.wallet-pill:hover {
+  background: rgba(0,0,0,0.65);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.wallet-pill button {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
+  padding: 8px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.wallet-pill button:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.25);
+}
+
+.wallet-pill button:active {
+  transform: translateY(1px);
+}
+
+.wallet-pill button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.wallet-pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.65);
+  flex-shrink: 0;
+}
+
+.wallet-pill .addr {
+  letter-spacing: 0.2px;
+  user-select: text;
+  -webkit-user-select: text;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .wallet-pill {
+    font-size: 12px;
+    padding: 9px 12px;
+    gap: 8px;
+  }
+
+  .wallet-pill button {
+    padding: 7px 9px;
+    font-size: 11px;
+  }
+
+  .wallet-pill .dot {
+    width: 7px;
+    height: 7px;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .wallet-pill {
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+
+  .wallet-pill button {
+    padding: 6px 8px;
   }
 }
     </style>
