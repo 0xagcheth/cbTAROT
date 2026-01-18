@@ -13,11 +13,14 @@
  * Documentation: https://miniapps.farcaster.xyz/docs
  */
 
+// Import SDK statically at module top for immediate availability
+import { sdk, isInMiniApp } from 'https://esm.sh/@farcaster/miniapp-sdk';
+
 // Global state for Farcaster Mini App
 window.FarcasterMiniApp = {
   isInitialized: false,
   isInMiniApp: false,
-  sdk: null,
+  sdk: sdk,
   context: null,
   user: null,
   authToken: null,
@@ -28,25 +31,21 @@ window.FarcasterMiniApp = {
 
 /**
  * Initialize the Farcaster Mini App SDK
- * Must be called after page load, before any SDK operations
+ * SDK is already imported statically at module top
  */
 async function initFarcasterMiniApp() {
   if (window.FarcasterMiniApp.isInitialized) {
-    console.log('[FarcasterMiniApp] Already initialized');
+    console.log('[cbTARO miniapp] Already initialized');
     return window.FarcasterMiniApp;
   }
 
   try {
-    // Dynamically import the SDK from ESM CDN
-    const { sdk, isInMiniApp } = await import('https://esm.sh/@farcaster/miniapp-sdk');
-    
-    window.FarcasterMiniApp.sdk = sdk;
-    
+    // SDK is already available from static import
     // Check if we're running inside a Farcaster Mini App environment
     const inMiniApp = await isInMiniApp();
     window.FarcasterMiniApp.isInMiniApp = inMiniApp;
     
-    console.log('[FarcasterMiniApp] Environment detected:', inMiniApp ? 'Mini App' : 'Standalone Browser');
+    console.log('[cbTARO miniapp] Environment detected:', inMiniApp ? 'Mini App ✓' : 'Standalone Browser');
     
     if (inMiniApp) {
       // Get context (viewer info, cast context if any)
@@ -61,15 +60,15 @@ async function initFarcasterMiniApp() {
             displayName: context.user.displayName,
             pfpUrl: context.user.pfpUrl
           };
-          console.log('[FarcasterMiniApp] User context:', window.FarcasterMiniApp.user);
+          console.log('[cbTARO miniapp] User context:', window.FarcasterMiniApp.user);
         }
       } catch (contextErr) {
-        console.warn('[FarcasterMiniApp] Could not get context:', contextErr);
+        console.warn('[cbTARO miniapp] Could not get context:', contextErr);
       }
     }
     
     window.FarcasterMiniApp.isInitialized = true;
-    console.log('[FarcasterMiniApp] SDK initialized successfully');
+    console.log('[cbTARO miniapp] SDK initialized ✓');
     
     // Dispatch custom event for React components to listen to
     window.dispatchEvent(new CustomEvent('farcaster-miniapp-ready', {
@@ -79,7 +78,7 @@ async function initFarcasterMiniApp() {
     return window.FarcasterMiniApp;
     
   } catch (error) {
-    console.warn('[FarcasterMiniApp] SDK initialization failed (this is normal in standalone browser):', error);
+    console.warn('[cbTARO miniapp] SDK initialization failed (normal in standalone browser):', error);
     window.FarcasterMiniApp.isInitialized = true;
     window.FarcasterMiniApp.isInMiniApp = false;
     return window.FarcasterMiniApp;
@@ -562,63 +561,57 @@ async function sendTip(size = 'small') {
 
 /**
  * FAILSAFE READY FLOW
- * Guarantees sdk.actions.ready() is called exactly once when inside Mini App
- * This runs automatically after UI renders to prevent infinite splash screen
+ * Calls sdk.actions.ready() IMMEDIATELY when inside Mini App
+ * Per Farcaster docs: must call ready() as soon as app loads
+ * https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display
  */
 async function failsafeReadyFlow() {
   try {
-    // Step 1: Initialize SDK and detect environment
-    await initFarcasterMiniApp();
+    // Step 1: Detect environment IMMEDIATELY (SDK already imported)
+    const inMiniApp = await isInMiniApp();
+    window.FarcasterMiniApp.isInMiniApp = inMiniApp;
     
-    // Step 2: Check if we're in Mini App
-    if (!window.FarcasterMiniApp.isInMiniApp) {
-      console.log('[cbTARO miniapp] Not in Mini App environment');
+    if (!inMiniApp) {
+      console.log('[cbTARO miniapp] Not in Mini App - skipping ready()');
+      // Still initialize for other features
+      await initFarcasterMiniApp();
       return;
     }
     
-    console.log('[cbTARO miniapp] In Mini App environment - preparing to call ready()');
+    console.log('[cbTARO miniapp] ⚡ Mini App detected - calling ready() IMMEDIATELY');
     
-    // Step 3: Wait for UI to fully paint (two RAF is safe for most browsers)
-    await new Promise(resolve => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(resolve);
-      });
-    });
-    
-    // Step 4: Call ready() exactly once
-    const sdk = window.FarcasterMiniApp.sdk;
-    
+    // Step 2: Call ready() IMMEDIATELY without delay
     if (window.FarcasterMiniApp.readyCalled) {
-      console.log('[cbTARO miniapp] Ready already called by another flow');
+      console.log('[cbTARO miniapp] Ready already called');
       return;
     }
     
     if (!sdk || !sdk.actions || typeof sdk.actions.ready !== 'function') {
-      console.warn('[cbTARO miniapp] sdk.actions.ready not available');
+      console.error('[cbTARO miniapp] ❌ sdk.actions.ready not available!');
       return;
     }
     
-    console.log('[cbTARO miniapp] Calling ready()');
+    // CALL READY IMMEDIATELY - no RAF wait, no delays
     await sdk.actions.ready();
     window.FarcasterMiniApp.readyCalled = true;
-    console.log('[cbTARO miniapp] Ready called successfully ✓');
+    console.log('[cbTARO miniapp] ✅ ready() called successfully');
+    
+    // Step 3: Now initialize other features (context, user, etc.)
+    await initFarcasterMiniApp();
     
   } catch (error) {
-    console.error('[cbTARO miniapp] Failsafe ready flow error:', error);
+    console.error('[cbTARO miniapp] ❌ Failsafe ready flow error:', error);
     
-    // LAST RESORT: If we errored but we're in Mini App, try to call ready anyway
-    // to avoid infinite splash screen
+    // EMERGENCY FALLBACK: Try ready() one more time
     try {
-      if (window.FarcasterMiniApp.isInMiniApp && 
-          !window.FarcasterMiniApp.readyCalled &&
-          window.FarcasterMiniApp.sdk?.actions?.ready) {
-        console.log('[cbTARO miniapp] Emergency fallback: calling ready()');
-        await window.FarcasterMiniApp.sdk.actions.ready();
+      if (!window.FarcasterMiniApp.readyCalled && sdk?.actions?.ready) {
+        console.log('[cbTARO miniapp] 🚨 Emergency fallback: calling ready()');
+        await sdk.actions.ready();
         window.FarcasterMiniApp.readyCalled = true;
-        console.log('[cbTARO miniapp] Emergency ready() succeeded');
+        console.log('[cbTARO miniapp] ✅ Emergency ready() succeeded');
       }
     } catch (fallbackError) {
-      console.error('[cbTARO miniapp] Emergency fallback also failed:', fallbackError);
+      console.error('[cbTARO miniapp] ❌ Emergency fallback failed:', fallbackError);
     }
   }
 }
@@ -637,11 +630,11 @@ window.fcCopyToClipboard = copyToClipboardFallback;
 window.TIP_AMOUNTS = TIP_AMOUNTS;
 window.TIP_RECIPIENT = TIP_RECIPIENT;
 
-// ROBUST AUTO-INITIALIZATION
-// Runs failsafe ready flow on DOMContentLoaded to guarantee ready() is called
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', failsafeReadyFlow, { once: true });
-} else {
-  // DOM already loaded, run immediately
-  failsafeReadyFlow();
-}
+// IMMEDIATE AUTO-INITIALIZATION
+// Call ready() IMMEDIATELY when module loads (don't wait for DOM)
+// Per Farcaster docs: must call ready() as soon as app loads
+// https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display
+console.log('[cbTARO miniapp] Module loaded - executing failsafe ready flow');
+failsafeReadyFlow().catch(err => {
+  console.error('[cbTARO miniapp] Fatal error in failsafe flow:', err);
+});
