@@ -23,15 +23,6 @@
     
     <!-- Farcaster Frame Meta Tag (backward compatible, same embed JSON) -->
     <meta name="fc:frame" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
-    
-    <!-- Farcaster Mini App Ready - EXACTLY as per docs -->
-    <!-- https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display -->
-    <script type="module">
-      import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
-      
-      // After your app is fully loaded and ready to display
-      await sdk.actions.ready();
-    </script>
 </head>
 <body>
     <script>
@@ -87,7 +78,7 @@
     <div id="root"></div>
 
     <!-- Farcaster Mini App SDK Integration -->
-    <script type="module" src="miniapp.js"></script>
+    <script type="module" src="https://0xagcheth.github.io/cbTARO/miniapp.js"></script>
 
     <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
@@ -2385,5 +2376,41 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   }
 }
     </style>
+
+    <!-- Farcaster Ready Bootstrap (Failsafe) -->
+    <!-- Per docs: https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display -->
+    <script type="module">
+      import { sdk } from "https://esm.sh/@farcaster/miniapp-sdk";
+      let __cb_ready_called = false;
+      async function __cb_ready(reason) {
+        if (__cb_ready_called) return;
+        __cb_ready_called = true;
+        try {
+          if (!sdk?.actions?.ready) return;
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          await sdk.actions.ready();
+          console.log("[cbTARO] sdk.actions.ready():", reason);
+        } catch (e) {
+          console.warn("[cbTARO] ready failed:", e);
+        }
+      }
+      async function __cb_boot() {
+        try {
+          if (typeof sdk?.isInMiniApp === "function") {
+            const inMiniApp = await sdk.isInMiniApp();
+            console.log("[cbTARO] isInMiniApp:", inMiniApp);
+            if (!inMiniApp) return;
+          }
+          await __cb_ready("bootstrap");
+        } catch (e) {
+          await __cb_ready("bootstrap-fallback");
+        }
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", __cb_boot, { once: true });
+      } else {
+        __cb_boot();
+      }
+    </script>
 </body>
 </html>
