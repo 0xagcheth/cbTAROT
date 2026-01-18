@@ -88,6 +88,12 @@ async function detectEnvironment() {
  * This dismisses the splash screen
  */
 async function ready() {
+  // Check if HEAD bootstrap already called ready()
+  if (window.__cbTARO_ready_called) {
+    console.log('[cbTARO] ready() already called by HEAD bootstrap');
+    return { success: false, reason: 'already_called_by_bootstrap' };
+  }
+  
   if (!state.inMiniApp) {
     console.log('[cbTARO] Not in Mini App, skipping ready()');
     return { success: false, reason: 'not_in_miniapp' };
@@ -490,7 +496,12 @@ async function init() {
     
     // 3. Call ready() if in Mini App (MANDATORY)
     if (state.inMiniApp) {
-      await ready();
+      if (!window.__cbTARO_ready_called) {
+        await ready();
+      } else {
+        console.log('[cbTARO] Skipping ready() - already called by HEAD bootstrap');
+        state.readyCalled = true;
+      }
       
       // 4. Load context
       state.context = await getContext();

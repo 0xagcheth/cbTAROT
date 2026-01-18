@@ -23,6 +23,44 @@
     
     <!-- Farcaster Frame Meta Tag (backward compatible, same embed JSON) -->
     <meta name="fc:frame" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
+    
+    <!-- CRITICAL: Farcaster ready() bootstrap - MUST run FIRST -->
+    <script type="module">
+      import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk@0.0.59';
+      
+      let __ready = false;
+      async function callReady() {
+        if (__ready) return;
+        __ready = true;
+        try {
+          if (!sdk?.actions?.ready) return;
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+          await sdk.actions.ready();
+          console.log('[cbTARO HEAD] ✅ ready() called');
+          window.__cbTARO_ready_called = true;
+        } catch (e) {
+          console.error('[cbTARO HEAD] ready() failed:', e);
+        }
+      }
+      
+      async function init() {
+        try {
+          if (typeof sdk?.isInMiniApp === 'function') {
+            const inMiniApp = await sdk.isInMiniApp();
+            if (!inMiniApp) return;
+          }
+          await callReady();
+        } catch (e) {
+          await callReady(); // Failsafe
+        }
+      }
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+      } else {
+        init();
+      }
+    </script>
 </head>
 <body>
     <script>
