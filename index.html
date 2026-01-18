@@ -265,16 +265,21 @@
                 return;
               }
 
-              // Get user data from SDK context
-              if (sdk.context?.user) {
-                const { fid, pfpUrl } = sdk.context.user;
-                setUserFid(fid);
-                setUserAvatarUrl(pfpUrl || "");
-                console.log('Farcaster user loaded:', { fid, pfpUrl });
-              }
-
               // Wait for first render to complete before hiding splash screen
               await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+              
+              // Get user data from SDK context (after ready)
+              try {
+                const context = await sdk.context;
+                if (context?.user) {
+                  const { fid, pfpUrl } = context.user;
+                  setUserFid(fid);
+                  setUserAvatarUrl(pfpUrl || "");
+                  console.log('Farcaster user loaded:', { fid, pfpUrl });
+                }
+              } catch (e) {
+                console.warn('Failed to get user context:', e);
+              }
               
               await sdk.actions.ready();
               console.log('Farcaster Mini App ready signal sent');
@@ -1128,15 +1133,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                 <span className="dot" />
               )}
               {walletAddress ? (
-                <>
-                  <span className="addr">{shorten(walletAddress)}</span>
-                  <button
-                    onClick={() => navigator.clipboard?.writeText(walletAddress)}
-                    title="Copy address"
-                  >
-                    📋
-                  </button>
-                </>
+                <span className="addr">{shorten(walletAddress)}</span>
               ) : (
                 <button onClick={connectWallet} disabled={isConnecting}>
                   {isConnecting ? "Connecting…" : "Connect"}
