@@ -1,44 +1,101 @@
 /**
- * cbTARO - Farcaster Mini App SDK Integration
+ * cbTARO - Farcaster Mini App Integration
  * 
- * Provides a clean global API for Farcaster features:
- * - Environment detection
- * - Ready signal (dismiss splash)
- * - Wallet connection (EIP-1193 provider)
- * - Payments (sendToken + fallback to eth_sendTransaction)
- * - Social sharing (composeCast)
- * 
- * Docs: https://miniapps.farcaster.xyz/
+ * Official Documentation:
+ * - Getting Started: https://miniapps.farcaster.xyz/docs/getting-started
+ * - Loading/Ready: https://miniapps.farcaster.xyz/docs/guides/loading
+ * - Context: https://miniapps.farcaster.xyz/docs/sdk/context
+ * - Wallet: https://miniapps.farcaster.xyz/docs/sdk/wallet
+ * - Sharing: https://miniapps.farcaster.xyz/docs/guides/sharing
+ * - composeCast: https://miniapps.farcaster.xyz/docs/sdk/actions/compose-cast
+ * - sendToken: https://miniapps.farcaster.xyz/docs/sdk/actions/send-token
+ * - Capabilities: https://miniapps.farcaster.xyz/docs/sdk/detecting-capabilities
  */
 
-// Import SDK from ESM CDN with pinned version for stability
+// Import SDK from ESM CDN
 import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk@0.0.59';
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+const CONFIG = {
+  // Tip recipient EVM address (for eth_sendTransaction)
+  TIP_ADDRESS: '0xD4bF185c846F6CAbDaa34122d0ddA43765E754A6',
+  
+  // Optional: Recipient FID for native sendToken (if known)
+  // Set to null if unknown
+  TIP_RECIPIENT_FID: null,
+  
+  // Default share URL
+  SHARE_URL: 'https://0xagcheth.github.io/cbTARO/',
+  SHARE_EXTENSION_URL: 'https://0xagcheth.github.io/cbTARO/share',
+  
+  // Base network
+  CHAIN_ID: 8453, // Base mainnet
+  
+  // Example token for sendToken (Base USDC)
+  // CAIP-19 format: eip155:{chainId}/erc20:{contractAddress}
+  USDC_BASE_CAIP19: 'eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+};
 
 // =============================================================================
 // STATE
 // =============================================================================
 
 const state = {
-  initialized: false,
-  readyCalled: false,
   inMiniApp: false,
+  readyCalled: false,
   context: null,
   provider: null,
-  address: null
+  address: null,
+  capabilities: {}
 };
 
 // =============================================================================
-// READY SIGNAL (dismiss splash screen)
+// ENVIRONMENT DETECTION
+// https://miniapps.farcaster.xyz/docs/sdk/is-in-mini-app
+// =============================================================================
+
+/**
+ * Detect if running in Farcaster Mini App
+ */
+async function detectEnvironment() {
+  try {
+    if (typeof sdk?.isInMiniApp === 'function') {
+      state.inMiniApp = await sdk.isInMiniApp();
+      console.log('[cbTARO] Environment:', state.inMiniApp ? '🚀 Farcaster Mini App' : '🌐 Standalone Web');
+      return state.inMiniApp;
+    }
+    console.log('[cbTARO] isInMiniApp not available, assuming standalone');
+    state.inMiniApp = false;
+    return false;
+  } catch (err) {
+    console.error('[cbTARO] detectEnvironment error:', err);
+    state.inMiniApp = false;
+    return false;
+  }
+}
+
+// =============================================================================
+// READY SIGNAL (MANDATORY)
+// https://miniapps.farcaster.xyz/docs/sdk/actions/ready
+// https://miniapps.farcaster.xyz/docs/guides/loading
 // =============================================================================
 
 /**
  * Call sdk.actions.ready() exactly once when in Mini App
- * Per docs: https://miniapps.farcaster.xyz/docs/sdk/actions/ready
+ * This dismisses the splash screen
  */
-async function callReady() {
+async function ready() {
+  if (!state.inMiniApp) {
+    console.log('[cbTARO] Not in Mini App, skipping ready()');
+    return { success: false, reason: 'not_in_miniapp' };
+  }
+  
   if (state.readyCalled) {
-    console.log('[cbTARO] ready() already called, skipping');
-    return;
+    console.log('[cbTARO] ready() already called');
+    return { success: false, reason: 'already_called' };
   }
   
   state.readyCalled = true;
@@ -46,7 +103,7 @@ async function callReady() {
   try {
     if (!sdk?.actions?.ready) {
       console.warn('[cbTARO] sdk.actions.ready not available');
-      return;
+      return { success: false, reason: 'not_available' };
     }
     
     // Wait for UI to render (2 RAF ticks)
@@ -55,271 +112,211 @@ async function callReady() {
     );
     
     await sdk.actions.ready();
-    console.log('[cbTARO] ✅ sdk.actions.ready() called successfully');
+    console.log('[cbTARO] ✅ ready() called successfully');
+    return { success: true };
+    
   } catch (err) {
     console.error('[cbTARO] ready() failed:', err);
+    return { success: false, reason: err.message };
   }
 }
 
 // =============================================================================
-// INITIALIZATION
+// CONTEXT (Farcaster Identity/Session)
+// https://miniapps.farcaster.xyz/docs/sdk/context
 // =============================================================================
 
 /**
- * Initialize Farcaster SDK features
- * - Detect environment
- * - Call ready() if in Mini App
- * - Load context
- * - Setup wallet provider
+ * Get Farcaster user context
+ * Returns: { user: { fid, username, displayName, pfpUrl }, client, ... }
  */
-async function init() {
-  if (state.initialized) {
-    console.log('[cbTARO] Already initialized');
-    return state;
-  }
-  
-  console.log('[cbTARO] Initializing Farcaster Mini App SDK...');
-  
+async function getContext() {
   try {
-    // Detect environment
-    if (typeof sdk?.isInMiniApp === 'function') {
-      state.inMiniApp = await sdk.isInMiniApp();
-      console.log('[cbTARO] Environment:', state.inMiniApp ? 'Farcaster Mini App ✅' : 'Standalone Web');
-    } else {
-      console.log('[cbTARO] isInMiniApp not available, assuming standalone web');
-      state.inMiniApp = false;
+    if (!sdk?.context) {
+      console.warn('[cbTARO] sdk.context not available');
+      return null;
     }
     
-    // Call ready() if in Mini App
-    if (state.inMiniApp) {
-      await callReady();
-      
-      // Load context (user info)
-      if (sdk?.context) {
-        try {
-          state.context = await sdk.context;
-          console.log('[cbTARO] Context loaded:', {
-            fid: state.context?.user?.fid,
-            username: state.context?.user?.username,
-            displayName: state.context?.user?.displayName
-          });
-        } catch (err) {
-          console.warn('[cbTARO] Failed to load context:', err);
-        }
-      }
-      
-      // Setup wallet provider
-      if (sdk?.wallet?.getEthereumProvider) {
-        try {
-          state.provider = await sdk.wallet.getEthereumProvider();
-          console.log('[cbTARO] Ethereum provider loaded ✅');
-        } catch (err) {
-          console.warn('[cbTARO] Failed to load wallet provider:', err);
-        }
-      }
-    }
+    const context = await sdk.context;
+    console.log('[cbTARO] Context loaded:', {
+      fid: context?.user?.fid,
+      username: context?.user?.username,
+      displayName: context?.user?.displayName
+    });
     
-    state.initialized = true;
-    console.log('[cbTARO] Initialization complete ✅');
-    
-    // Dispatch custom event for UI
-    window.dispatchEvent(new CustomEvent('farcaster-ready', { 
-      detail: { 
-        inMiniApp: state.inMiniApp,
-        context: state.context 
-      }
-    }));
-    
-    return state;
+    return context;
     
   } catch (err) {
-    console.error('[cbTARO] Initialization failed:', err);
-    throw err;
+    console.error('[cbTARO] getContext error:', err);
+    return null;
   }
 }
 
-// =============================================================================
-// ENVIRONMENT DETECTION
-// =============================================================================
-
 /**
- * Check if running inside Farcaster Mini App
- * Docs: https://miniapps.farcaster.xyz/docs/sdk/is-in-mini-app
+ * Refresh context (re-read from SDK)
  */
-async function isInMiniApp() {
-  if (!state.initialized) {
-    await init();
-  }
-  return state.inMiniApp;
-}
-
-// =============================================================================
-// CONTEXT (user info)
-// =============================================================================
-
-/**
- * Get Farcaster user context (fid, username, displayName, pfpUrl)
- */
-function getContext() {
+async function refreshContext() {
+  state.context = await getContext();
   return state.context;
 }
 
 // =============================================================================
-// WALLET
+// WALLET (EIP-1193 Provider)
+// https://miniapps.farcaster.xyz/docs/sdk/wallet
 // =============================================================================
 
 /**
- * Get Ethereum provider (EIP-1193)
- * Docs: https://miniapps.farcaster.xyz/docs/sdk/wallet
+ * Get Ethereum provider (EIP-1193 compatible)
  */
-function getEthereumProvider() {
-  if (!state.provider) {
-    console.warn('[cbTARO] Provider not available. Are you in a Mini App?');
+async function getProvider() {
+  if (state.provider) {
+    return state.provider;
   }
-  return state.provider;
+  
+  try {
+    if (!sdk?.wallet?.getEthereumProvider) {
+      console.warn('[cbTARO] sdk.wallet.getEthereumProvider not available');
+      return null;
+    }
+    
+    state.provider = await sdk.wallet.getEthereumProvider();
+    console.log('[cbTARO] Ethereum provider loaded ✅');
+    return state.provider;
+    
+  } catch (err) {
+    console.error('[cbTARO] getProvider error:', err);
+    return null;
+  }
 }
 
 /**
  * Connect wallet (request accounts)
  */
 async function connectWallet() {
-  if (!state.provider) {
-    console.error('[cbTARO] No provider available');
-    return { success: false, error: 'Provider not available' };
+  console.log('[cbTARO] Connecting wallet...');
+  
+  const provider = await getProvider();
+  if (!provider) {
+    return {
+      success: false,
+      error: 'Provider not available. Are you in a Farcaster Mini App?'
+    };
   }
   
   try {
-    const accounts = await state.provider.request({ 
-      method: 'eth_requestAccounts' 
+    const accounts = await provider.request({
+      method: 'eth_requestAccounts'
     });
     
     if (accounts && accounts.length > 0) {
       state.address = accounts[0];
       console.log('[cbTARO] Wallet connected:', state.address);
       return { success: true, address: state.address };
-    } else {
-      return { success: false, error: 'No accounts returned' };
     }
+    
+    return { success: false, error: 'No accounts returned' };
+    
   } catch (err) {
-    console.error('[cbTARO] connectWallet failed:', err);
+    console.error('[cbTARO] connectWallet error:', err);
     return { success: false, error: err.message };
   }
 }
 
 /**
- * Get current wallet address
+ * Get current wallet address (if already connected)
  */
 async function getAddress() {
-  if (state.address) return state.address;
+  if (state.address) {
+    return state.address;
+  }
   
-  if (!state.provider) return null;
+  const provider = await getProvider();
+  if (!provider) {
+    return null;
+  }
   
   try {
-    const accounts = await state.provider.request({ 
-      method: 'eth_accounts' 
+    const accounts = await provider.request({
+      method: 'eth_accounts'
     });
+    
     if (accounts && accounts.length > 0) {
       state.address = accounts[0];
       return state.address;
     }
+    
+    return null;
+    
   } catch (err) {
-    console.warn('[cbTARO] getAddress failed:', err);
+    console.error('[cbTARO] getAddress error:', err);
+    return null;
   }
-  
-  return null;
 }
 
 // =============================================================================
-// PAYMENTS
+// PAYMENTS TO EVM ADDRESS (PRIMARY METHOD)
+// Uses EIP-1193 eth_sendTransaction
 // =============================================================================
 
-const TIP_RECIPIENT = '0xD4bF185c846F6CAbDaa34122d0ddA43765E754A6';
-const BASE_CHAIN_ID = 8453; // Base mainnet
-
 /**
- * Send tip (ETH on Base)
- * Docs: https://miniapps.farcaster.xyz/docs/sdk/actions/send-token
+ * Send tip to EVM address using eth_sendTransaction
  * 
- * @param {string} amountEth - Amount in ETH (e.g. "0.0001")
+ * @param {string} amountEth - Amount in ETH (e.g., "0.001")
  */
-async function sendTip(amountEth) {
-  console.log('[cbTARO] sendTip:', amountEth, 'ETH to', TIP_RECIPIENT);
+async function sendTipToAddress(amountEth) {
+  console.log('[cbTARO] Sending tip:', amountEth, 'ETH to', CONFIG.TIP_ADDRESS);
   
-  // Try native sendToken first
-  if (sdk?.actions?.sendToken) {
-    try {
-      // CAIP-19 format: eip155:8453/slip44:60
-      const tokenId = `eip155:${BASE_CHAIN_ID}/slip44:60`;
-      
-      const result = await sdk.actions.sendToken({
-        recipient: TIP_RECIPIENT,
-        tokenId: tokenId,
-        amount: amountEth
-      });
-      
-      if (result.success) {
-        console.log('[cbTARO] sendToken success:', result.transactionHash);
-        return { 
-          success: true, 
-          txHash: result.transactionHash,
-          method: 'sendToken'
-        };
-      } else {
-        console.warn('[cbTARO] sendToken rejected:', result.reason);
-        return { 
-          success: false, 
-          error: result.reason || 'rejected_by_user',
-          method: 'sendToken'
-        };
-      }
-    } catch (err) {
-      console.warn('[cbTARO] sendToken failed, trying fallback:', err);
-      // Fall through to EIP-1193 fallback
-    }
-  }
-  
-  // Fallback to eth_sendTransaction
-  if (!state.provider) {
-    return { 
-      success: false, 
-      error: 'No wallet provider available' 
+  const provider = await getProvider();
+  if (!provider) {
+    return {
+      success: false,
+      error: 'Wallet provider not available. Are you in a Farcaster Mini App?'
     };
   }
   
   try {
+    // Get from address
     const fromAddress = await getAddress();
     if (!fromAddress) {
-      return { 
-        success: false, 
-        error: 'Wallet not connected' 
+      return {
+        success: false,
+        error: 'Wallet not connected. Please connect wallet first.'
       };
     }
     
-    // Convert ETH to Wei hex
-    const valueWei = BigInt(Math.floor(parseFloat(amountEth) * 1e18));
-    const valueHex = '0x' + valueWei.toString(16);
+    // Convert ETH to Wei (as hex string)
+    const amountWei = BigInt(Math.floor(parseFloat(amountEth) * 1e18));
+    const valueHex = '0x' + amountWei.toString(16);
     
-    const txHash = await state.provider.request({
+    console.log('[cbTARO] Transaction params:', {
+      from: fromAddress,
+      to: CONFIG.TIP_ADDRESS,
+      value: valueHex,
+      amount: amountEth + ' ETH'
+    });
+    
+    // Send transaction via EIP-1193
+    const txHash = await provider.request({
       method: 'eth_sendTransaction',
       params: [{
         from: fromAddress,
-        to: TIP_RECIPIENT,
+        to: CONFIG.TIP_ADDRESS,
         value: valueHex,
-        chainId: '0x' + BASE_CHAIN_ID.toString(16)
+        chainId: '0x' + CONFIG.CHAIN_ID.toString(16)
       }]
     });
     
-    console.log('[cbTARO] eth_sendTransaction success:', txHash);
-    return { 
-      success: true, 
+    console.log('[cbTARO] ✅ Transaction sent:', txHash);
+    return {
+      success: true,
       txHash: txHash,
       method: 'eth_sendTransaction'
     };
     
   } catch (err) {
-    console.error('[cbTARO] Payment failed:', err);
-    return { 
-      success: false, 
+    console.error('[cbTARO] sendTipToAddress error:', err);
+    return {
+      success: false,
       error: err.message || 'Transaction failed',
       method: 'eth_sendTransaction'
     };
@@ -327,22 +324,92 @@ async function sendTip(amountEth) {
 }
 
 // =============================================================================
-// SHARING
+// OPTIONAL: NATIVE FARCASTER SEND TOKEN (FID-based)
+// https://miniapps.farcaster.xyz/docs/sdk/actions/send-token
+// =============================================================================
+
+/**
+ * Send token using native Farcaster send sheet
+ * NOTE: Only works with recipientFid, NOT EVM addresses
+ * 
+ * @param {Object} params
+ * @param {string} params.token - CAIP-19 token identifier
+ * @param {string} params.amount - Amount to send
+ * @param {number} params.recipientFid - Recipient Farcaster FID
+ */
+async function sendTokenToFid_optional({ token, amount, recipientFid }) {
+  console.log('[cbTARO] sendToken (optional):', { token, amount, recipientFid });
+  
+  if (!sdk?.actions?.sendToken) {
+    console.warn('[cbTARO] sdk.actions.sendToken not available');
+    return {
+      success: false,
+      error: 'sendToken not available in this client'
+    };
+  }
+  
+  if (!recipientFid) {
+    return {
+      success: false,
+      error: 'recipientFid is required for sendToken'
+    };
+  }
+  
+  try {
+    const result = await sdk.actions.sendToken({
+      token: token,
+      amount: amount,
+      recipientFid: recipientFid
+    });
+    
+    if (result && typeof result === 'object') {
+      if (result.success) {
+        console.log('[cbTARO] ✅ sendToken success:', result.transactionHash);
+        return {
+          success: true,
+          txHash: result.transactionHash,
+          method: 'sendToken'
+        };
+      } else {
+        console.warn('[cbTARO] sendToken rejected:', result.reason);
+        return {
+          success: false,
+          error: result.reason || 'Transaction rejected',
+          method: 'sendToken'
+        };
+      }
+    }
+    
+    return { success: false, error: 'Unexpected response' };
+    
+  } catch (err) {
+    console.error('[cbTARO] sendTokenToFid_optional error:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+// =============================================================================
+// SHARING (Compose Cast)
+// https://miniapps.farcaster.xyz/docs/sdk/actions/compose-cast
+// https://miniapps.farcaster.xyz/docs/guides/sharing
 // =============================================================================
 
 /**
  * Open Farcaster composer with pre-filled cast
- * Docs: https://miniapps.farcaster.xyz/docs/sdk/actions/compose-cast
  * 
- * @param {string} text - Cast text
- * @param {string[]} embeds - Array of URLs to embed
+ * @param {Object} params
+ * @param {string} params.text - Cast text
+ * @param {string} params.embedUrl - URL to embed (default: app URL)
  */
-async function composeCast(text, embeds = []) {
+async function shareReading({ text, embedUrl = CONFIG.SHARE_URL }) {
+  console.log('[cbTARO] Opening Farcaster composer...');
+  
   if (!state.inMiniApp) {
-    console.warn('[cbTARO] composeCast only works in Mini App');
-    // Fallback: copy to clipboard
+    console.warn('[cbTARO] Not in Mini App, trying clipboard fallback');
     try {
-      await navigator.clipboard.writeText(text + '\n\n' + embeds.join('\n'));
+      const fullText = text + '\n\n' + embedUrl;
+      await navigator.clipboard.writeText(fullText);
+      console.log('[cbTARO] ✅ Copied to clipboard');
       return { success: true, fallback: 'clipboard' };
     } catch (err) {
       console.error('[cbTARO] Clipboard fallback failed:', err);
@@ -351,33 +418,107 @@ async function composeCast(text, embeds = []) {
   }
   
   if (!sdk?.actions?.composeCast) {
-    console.error('[cbTARO] composeCast not available');
+    console.error('[cbTARO] sdk.actions.composeCast not available');
     return { success: false, error: 'composeCast not available' };
   }
   
   try {
-    // Ensure embeds are absolute URLs
-    const validEmbeds = embeds.filter(url => {
+    // Validate embed URL
+    let validEmbeds = [];
+    if (embedUrl) {
       try {
-        new URL(url);
-        return true;
+        new URL(embedUrl);
+        validEmbeds = [embedUrl];
       } catch {
-        console.warn('[cbTARO] Invalid embed URL:', url);
-        return false;
+        console.warn('[cbTARO] Invalid embedUrl:', embedUrl);
       }
-    });
+    }
     
     await sdk.actions.composeCast({
       text: text,
       embeds: validEmbeds
     });
     
-    console.log('[cbTARO] composeCast opened ✅');
+    console.log('[cbTARO] ✅ Composer opened');
     return { success: true };
     
   } catch (err) {
-    console.error('[cbTARO] composeCast failed:', err);
+    console.error('[cbTARO] shareReading error:', err);
     return { success: false, error: err.message };
+  }
+}
+
+// =============================================================================
+// CAPABILITY DETECTION
+// https://miniapps.farcaster.xyz/docs/sdk/detecting-capabilities
+// =============================================================================
+
+/**
+ * Check available capabilities
+ */
+function detectCapabilities() {
+  const caps = {
+    isInMiniApp: typeof sdk?.isInMiniApp === 'function',
+    ready: typeof sdk?.actions?.ready === 'function',
+    context: !!sdk?.context,
+    wallet: typeof sdk?.wallet?.getEthereumProvider === 'function',
+    composeCast: typeof sdk?.actions?.composeCast === 'function',
+    sendToken: typeof sdk?.actions?.sendToken === 'function'
+  };
+  
+  state.capabilities = caps;
+  console.log('[cbTARO] Capabilities:', caps);
+  return caps;
+}
+
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+
+/**
+ * Initialize Farcaster Mini App
+ */
+async function init() {
+  console.log('[cbTARO] Initializing Farcaster Mini App SDK...');
+  
+  try {
+    // 1. Detect capabilities
+    detectCapabilities();
+    
+    // 2. Detect environment
+    await detectEnvironment();
+    
+    // 3. Call ready() if in Mini App (MANDATORY)
+    if (state.inMiniApp) {
+      await ready();
+      
+      // 4. Load context
+      state.context = await getContext();
+      
+      // 5. Setup provider (lazy loaded on first use)
+      // Provider will be loaded on-demand by getProvider()
+    }
+    
+    console.log('[cbTARO] Initialization complete ✅');
+    
+    // Dispatch event for UI
+    window.dispatchEvent(new CustomEvent('farcaster-ready', {
+      detail: {
+        inMiniApp: state.inMiniApp,
+        context: state.context,
+        capabilities: state.capabilities
+      }
+    }));
+    
+    return {
+      inMiniApp: state.inMiniApp,
+      context: state.context,
+      capabilities: state.capabilities
+    };
+    
+  } catch (err) {
+    console.error('[cbTARO] Initialization failed:', err);
+    throw err;
   }
 }
 
@@ -385,26 +526,44 @@ async function composeCast(text, embeds = []) {
 // GLOBAL API
 // =============================================================================
 
+/**
+ * Expose global bridge for UI
+ */
 window.fc = {
+  // Environment
+  inMiniApp: () => state.inMiniApp,
+  
+  // Context (Farcaster identity/session)
+  context: () => state.context,
+  refreshContext,
+  
   // Core
-  init,
-  ready: callReady,
-  isInMiniApp,
-  getContext,
+  ready,
   
   // Wallet
   connectWallet,
   getAddress,
-  getEthereumProvider,
+  getProvider,
   
-  // Payments
-  sendTip,
+  // Payments (PRIMARY: to EVM address)
+  sendTipToAddress,
   
   // Sharing
-  composeCast,
+  shareReading,
   
-  // State (read-only)
-  get state() { return { ...state }; }
+  // Optional: native sendToken (FID-based)
+  sendTokenToFid_optional,
+  
+  // Capabilities
+  capabilities: () => state.capabilities,
+  
+  // Config (read-only)
+  config: {
+    TIP_ADDRESS: CONFIG.TIP_ADDRESS,
+    TIP_RECIPIENT_FID: CONFIG.TIP_RECIPIENT_FID,
+    SHARE_URL: CONFIG.SHARE_URL,
+    SHARE_EXTENSION_URL: CONFIG.SHARE_EXTENSION_URL
+  }
 };
 
 // =============================================================================
@@ -414,15 +573,16 @@ window.fc = {
 // Auto-initialize on DOMContentLoaded
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
+    console.log('[cbTARO] DOM ready, starting initialization');
     init().catch(err => {
       console.error('[cbTARO] Auto-init failed:', err);
     });
   });
 } else {
-  // DOM already loaded
+  console.log('[cbTARO] DOM already loaded, starting initialization');
   init().catch(err => {
     console.error('[cbTARO] Auto-init failed:', err);
   });
 }
 
-console.log('[cbTARO] miniapp.js loaded, window.fc API available');
+console.log('[cbTARO] miniapp.js loaded ✅ window.fc API available');

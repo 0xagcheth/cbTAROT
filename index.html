@@ -245,7 +245,7 @@
         // Farcaster Mini App initialization
         useEffect(() => {
           const handleFarcasterReady = (event) => {
-            // New miniapp.js uses window.fc API and dispatches 'farcaster-ready'
+            // miniapp.js dispatches 'farcaster-ready' event
             if (event.detail) {
               setFcInMiniApp(event.detail.inMiniApp || false);
               
@@ -261,13 +261,14 @@
               }
             }
             
-            // Also check window.fc.state directly
-            if (window.fc?.state) {
-              const state = window.fc.state;
-              setFcInMiniApp(state.inMiniApp || false);
+            // Also check window.fc API directly
+            if (window.fc) {
+              const inMiniApp = typeof window.fc.inMiniApp === 'function' ? window.fc.inMiniApp() : false;
+              setFcInMiniApp(inMiniApp);
               
-              if (state.context?.user) {
-                const user = state.context.user;
+              const context = typeof window.fc.context === 'function' ? window.fc.context() : null;
+              if (context?.user) {
+                const user = context.user;
                 setFcUser({
                   fid: user.fid,
                   username: user.username,
@@ -275,23 +276,20 @@
                   pfpUrl: user.pfpUrl
                 });
               }
-              
-              if (state.address) {
-                setFcWalletConnected(true);
-                setFcWalletAddress(state.address);
-              }
             }
           };
 
           // Listen for the custom event from miniapp.js
           window.addEventListener('farcaster-ready', handleFarcasterReady);
 
-          // Check if already initialized
-          if (window.fc?.state?.initialized) {
-            handleFarcasterReady({ detail: { 
-              inMiniApp: window.fc.state.inMiniApp,
-              context: window.fc.state.context 
-            }});
+          // Check if already initialized (try to load immediately)
+          if (window.fc?.inMiniApp) {
+            setTimeout(() => {
+              handleFarcasterReady({ detail: { 
+                inMiniApp: window.fc.inMiniApp(),
+                context: window.fc.context ? window.fc.context() : null
+              }});
+            }, 100);
           }
 
           return () => {
@@ -309,10 +307,10 @@
           }
         };
 
-        const handleFcTip = async (size) => {
-          if (!window.fc?.sendTip) return;
+        const handleFcTip = async (amountEth) => {
+          if (!window.fc?.sendTipToAddress) return;
           setTipStatus('sending');
-          const result = await window.fc.sendTip(size);
+          const result = await window.fc.sendTipToAddress(amountEth);
           if (result.success) {
             setTipStatus('success');
             setTimeout(() => {
@@ -329,10 +327,10 @@
           const shareText = cards.length > 0
             ? `🔮 I just got a mystical taro reading with ${cards.map(c => c.name).join(', ')}! Discover your destiny with cbTARO.`
             : `🔮 Discover your destiny with cbTARO - AI-powered mystical taro readings!`;
-          const shareUrl = 'https://0xagcheth.github.io/cbTARO/';
+          const embedUrl = 'https://0xagcheth.github.io/cbTARO/';
           
-          if (window.fc?.composeCast) {
-            const result = await window.fc.composeCast(shareText, [shareUrl]);
+          if (window.fc?.shareReading) {
+            const result = await window.fc.shareReading({ text: shareText, embedUrl: embedUrl });
             if (result.fallback === 'clipboard') {
               setShareStatus('copied');
               setTimeout(() => setShareStatus(null), 2000);
@@ -1213,21 +1211,21 @@ Important: This must be a unique interpretation for this specific card spread. M
                       <div className="fc-tip-amounts">
                         <button 
                           className="fc-tip-amount-btn"
-                          onClick={() => handleFcTip('small')}
+                          onClick={() => handleFcTip('0.0001')}
                         >
                           <span className="fc-tip-emoji">🌟</span>
                           <span className="fc-tip-value">0.0001 ETH</span>
                         </button>
                         <button 
                           className="fc-tip-amount-btn"
-                          onClick={() => handleFcTip('medium')}
+                          onClick={() => handleFcTip('0.001')}
                         >
                           <span className="fc-tip-emoji">✨</span>
                           <span className="fc-tip-value">0.001 ETH</span>
                         </button>
                         <button 
                           className="fc-tip-amount-btn"
-                          onClick={() => handleFcTip('large')}
+                          onClick={() => handleFcTip('0.01')}
                         >
                           <span className="fc-tip-emoji">💎</span>
                           <span className="fc-tip-value">0.01 ETH</span>
