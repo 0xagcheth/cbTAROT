@@ -24,33 +24,13 @@
     <!-- Farcaster Frame Meta Tag (backward compatible, same embed JSON) -->
     <meta name="fc:frame" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
     
-    <!-- CRITICAL: Farcaster ready() bootstrap - MUST be in HEAD -->
-    <!-- Per docs: https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display -->
+    <!-- Farcaster Mini App Ready - EXACTLY as per docs -->
+    <!-- https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display -->
     <script type="module">
-      import { sdk } from "https://esm.sh/@farcaster/miniapp-sdk";
+      import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk';
       
-      // IMMEDIATE ready() call - NO delays, NO RAF
-      (async () => {
-        try {
-          // Check if in Mini App
-          if (typeof sdk?.isInMiniApp === "function") {
-            const inMiniApp = await sdk.isInMiniApp();
-            if (!inMiniApp) {
-              console.log("[cbTARO] Not in Mini App");
-              return;
-            }
-          }
-          
-          // Call ready() IMMEDIATELY
-          if (sdk?.actions?.ready) {
-            await sdk.actions.ready();
-            console.log("[cbTARO] ✅ ready() called from HEAD");
-            window.__cbTARO_ready_called = true;
-          }
-        } catch (e) {
-          console.error("[cbTARO] ready() error:", e);
-        }
-      })();
+      // After your app is fully loaded and ready to display
+      await sdk.actions.ready();
     </script>
 </head>
 <body>
