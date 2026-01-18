@@ -1262,6 +1262,62 @@ Important: This must be a unique interpretation for this specific card spread. M
       root.render(React.createElement(React.StrictMode, null, React.createElement(TaroApp, null)));
     </script>
 
+    <!-- Farcaster Mini App Ready Signal -->
+    <script type="module">
+      /**
+       * Call sdk.actions.ready() after React app is fully initialized
+       * This ensures the splash screen is dismissed only when the UI is ready
+       */
+      (async function initFarcasterReady() {
+        try {
+          console.log('[cbTARO] Waiting for app initialization...');
+          
+          // Wait for window.fc API to be available (from miniapp.js)
+          let attempts = 0;
+          const maxAttempts = 50;
+          while (!window.fc && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+          
+          if (!window.fc) {
+            console.warn('[cbTARO] window.fc not available after waiting');
+            return;
+          }
+          
+          // Wait for React root to render (check for app content)
+          const rootEl = document.getElementById('root');
+          if (rootEl) {
+            // Wait a bit for React to paint the initial UI
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Verify that content has been rendered
+            if (rootEl.children.length === 0) {
+              console.warn('[cbTARO] React app not rendered yet, waiting longer...');
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          }
+          
+          console.log('[cbTARO] App UI initialized, calling ready()...');
+          
+          // Call ready() through the global API
+          const result = await window.fc.ready();
+          
+          if (result && result.success) {
+            console.log('[cbTARO] ✅ Farcaster Mini App ready() called successfully');
+            console.log('[cbTARO] Splash screen should now be dismissed');
+          } else if (result && result.reason === 'already_called') {
+            console.log('[cbTARO] ready() was already called');
+          } else {
+            console.warn('[cbTARO] ready() call did not succeed:', result);
+          }
+          
+        } catch (err) {
+          console.error('[cbTARO] Error calling ready():', err);
+        }
+      })();
+    </script>
+
     <style>
     *{box-sizing:border-box;}
 html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0);padding-bottom:var(--safe-area-inset-bottom,0);padding-left:var(--safe-area-inset-left,0);padding-right:var(--safe-area-inset-right,0);overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overscroll-behavior:none;-webkit-overflow-scrolling:auto;}

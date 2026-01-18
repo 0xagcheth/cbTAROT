@@ -467,8 +467,9 @@ function detectCapabilities() {
 
 /**
  * Initialize Farcaster Mini App
+ * @param {boolean} callReady - Whether to call ready() automatically (default: false)
  */
-async function init() {
+async function init(callReady = false) {
   console.log('[cbTARO] Initializing Farcaster Mini App SDK...');
   
   try {
@@ -478,16 +479,18 @@ async function init() {
     // 2. Detect environment
     await detectEnvironment();
     
-    // 3. Call ready() if in Mini App (MANDATORY)
-    if (state.inMiniApp) {
+    // 3. Call ready() if in Mini App (MANDATORY) - but only if explicitly requested
+    if (state.inMiniApp && callReady) {
       await ready();
-      
-      // 4. Load context
-      state.context = await getContext();
-      
-      // 5. Setup provider (lazy loaded on first use)
-      // Provider will be loaded on-demand by getProvider()
     }
+    
+    // 4. Load context
+    if (state.inMiniApp) {
+      state.context = await getContext();
+    }
+    
+    // 5. Setup provider (lazy loaded on first use)
+    // Provider will be loaded on-demand by getProvider()
     
     console.log('[cbTARO] Initialization complete ✅');
     
