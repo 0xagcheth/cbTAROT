@@ -32,28 +32,28 @@ Farcaster Mini Apps require a manifest at:
 https://<domain>/.well-known/farcaster.json
 ```
 
-**The Issue with GitHub Pages Project Sites:**
+The `accountAssociation.payload` domain in this app is:
+```
+0xagcheth.github.io
+```
+
+**Therefore, the VALID manifest MUST be hosted at:**
+```
+https://0xagcheth.github.io/.well-known/farcaster.json
+```
+
+### GitHub Pages Limitation
 
 This repository (`cbTARO`) is deployed as a GitHub Pages **PROJECT PAGE** at:
 ```
 https://0xagcheth.github.io/cbTARO/
 ```
 
-However, the `accountAssociation.payload` domain is:
-```
-0xagcheth.github.io
-```
-
-This means the manifest **MUST** be accessible at:
-```
-https://0xagcheth.github.io/.well-known/farcaster.json
-```
-
-**Project pages CANNOT serve files at the root domain** (`/.well-known`). The cbTARO repository can only serve files under `/cbTARO/`.
+**Project pages CANNOT serve files at the root domain** (`/.well-known`). This repo can only serve files under `/cbTARO/`.
 
 ### Solution: Create a User GitHub Pages Site
 
-You must create a **separate repository** to host the manifest at the root domain.
+To satisfy the domain association requirement, you must create a **separate repository**:
 
 #### Step-by-Step Instructions:
 
@@ -62,48 +62,73 @@ You must create a **separate repository** to host the manifest at the root domai
    0xagcheth.github.io
    ```
 
-2. **In that repository**, create the folder structure:
+2. **In that repository**, create the following files:
    ```
+   .nojekyll              # Empty file - required!
    .well-known/
-   └── farcaster.json
+   └── farcaster.json     # Copy from this repo
    ```
 
-3. **Copy the manifest content** from this repo's `.well-known/farcaster.json` into the new repository.
+3. **Copy the manifest** from this repo's `.well-known/farcaster.json` into the new repository.
 
-4. **Update the accountAssociation** with your actual signed credentials:
-   - Generate using Warpcast or Farcaster developer tools
-   - The `payload` domain must be `0xagcheth.github.io`
-   - DO NOT regenerate if you already have valid credentials
-
-5. **Enable GitHub Pages** on the `0xagcheth.github.io` repository:
+4. **Enable GitHub Pages** on the `0xagcheth.github.io` repository:
    - Go to Settings → Pages
    - Source: Deploy from a branch
    - Branch: main / root
 
-6. **Verify the manifest** is accessible at:
+5. **Verify the manifest** is accessible at:
    ```
    https://0xagcheth.github.io/.well-known/farcaster.json
    ```
 
-### Manifest Structure
+### Why .nojekyll is Required
+
+GitHub Pages uses Jekyll by default, which ignores files and directories starting with a dot (like `.well-known`). The `.nojekyll` file disables Jekyll processing, ensuring the `.well-known` directory is served correctly.
+
+**Both repositories need `.nojekyll`:**
+- `0xagcheth.github.io` repo (for the manifest)
+- `cbTARO` repo (already included)
+
+### Convenience Copy in This Repo
+
+This repo includes a copy of the manifest at:
+```
+https://0xagcheth.github.io/cbTARO/.well-known/farcaster.json
+```
+
+**Note:** This copy does NOT satisfy domain association. It is only for reference and testing. The real manifest must be at the root domain.
+
+---
+
+## Manifest Structure
+
+The manifest uses the `miniapp` configuration (not `frame`):
 
 ```json
 {
   "accountAssociation": {
-    "header": "<base64-encoded-header>",
-    "payload": "<base64-encoded-payload-with-domain>",
-    "signature": "<signature>"
+    "header": "eyJmaWQiOjIxMDUxLC...",
+    "payload": "eyJkb21haW4iOiIweGFnY2hldGguZ2l0aHViLmlvIn0",
+    "signature": "aXwD4QtCu7BgjxmwDT/ZXDB8ebe..."
   },
-  "frame": {
+  "miniapp": {
     "version": "1",
     "name": "cbTARO",
-    "iconUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/i.png",
     "homeUrl": "https://0xagcheth.github.io/cbTARO/",
-    "imageUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/f.png",
-    "buttonTitle": "Get Taro Reading",
-    "splashImageUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/s.png",
-    "splashBackgroundColor": "#1a0a2e",
-    "webhookUrl": ""
+    "iconUrl": "https://0xagcheth.github.io/cbTARO/i.png",
+    "splashImageUrl": "https://0xagcheth.github.io/cbTARO/s.png",
+    "splashBackgroundColor": "#0b1020",
+    "subtitle": "Mystical taro reading on Base",
+    "description": "Draw taro cards, explore interpretations, and share your reading on Farcaster.",
+    "primaryCategory": "games",
+    "tags": ["taro", "cards", "mystic", "base", "farcaster"],
+    "tagline": "Reveal your Taro",
+    "ogTitle": "cbTARO — Onchain Taro Reading",
+    "ogDescription": "Draw a taro card and share your mystical reading on Farcaster.",
+    "ogImageUrl": "https://0xagcheth.github.io/cbTARO/og.png",
+    "buttonTitle": "Open cbTARO",
+    "imageUrl": "https://0xagcheth.github.io/cbTARO/og.png",
+    "castShareUrl": "https://0xagcheth.github.io/cbTARO/share"
   }
 }
 ```
@@ -116,12 +141,12 @@ After setup, verify your configuration:
 
 | What | URL |
 |------|-----|
-| Manifest | https://0xagcheth.github.io/.well-known/farcaster.json |
+| **Manifest (REQUIRED)** | https://0xagcheth.github.io/.well-known/farcaster.json |
 | Main App | https://0xagcheth.github.io/cbTARO/ |
-| Share Extension | https://0xagcheth.github.io/cbTARO/share/ |
-| OG Image | https://0xagcheth.github.io/cbTARO/Assets/imagine/f.png |
-| App Icon | https://0xagcheth.github.io/cbTARO/Assets/imagine/i.png |
-| Splash Image | https://0xagcheth.github.io/cbTARO/Assets/imagine/s.png |
+| Share Extension | https://0xagcheth.github.io/cbTARO/share |
+| OG Image | https://0xagcheth.github.io/cbTARO/og.png |
+| App Icon | https://0xagcheth.github.io/cbTARO/i.png |
+| Splash Image | https://0xagcheth.github.io/cbTARO/s.png |
 
 ---
 
@@ -130,7 +155,7 @@ After setup, verify your configuration:
 ### Method 1: Warpcast Developer Tools
 
 1. Open Warpcast on mobile
-2. Go to Settings → Developer → Frames Developer Tools
+2. Go to Settings → Developer → Mini Apps Developer Tools
 3. Enter your Mini App URL: `https://0xagcheth.github.io/cbTARO/`
 4. Test the app behavior
 
@@ -140,25 +165,40 @@ After setup, verify your configuration:
 2. The Mini App should render as an embed
 3. Tap to open in full Mini App view
 
-### Method 3: Frame Debugger
+---
 
-Use the Farcaster Frame Debugger:
-https://warpcast.com/~/developers/frames
+## Testing Checklist
+
+Before publishing, verify:
+
+- [ ] **`.nojekyll` present** in both repos (cbTARO and 0xagcheth.github.io)
+- [ ] **Manifest accessible** at `https://0xagcheth.github.io/.well-known/farcaster.json`
+- [ ] **Share page loads** at `https://0xagcheth.github.io/cbTARO/share` (valid HTML)
+- [ ] **SDK ready() works**: Splash screen dismisses in Mini App
+- [ ] **Share button**: Opens Farcaster cast composer (or copies to clipboard outside Mini App)
+- [ ] **Tip button**: Triggers sendToken with proper result handling
+- [ ] **Connect Wallet**: Shows connected address
+- [ ] **User identity**: Displays when inside Mini App
+- [ ] **Standalone mode**: App works normally in regular browser
 
 ---
 
-## Manual Test Checklist
+## Required Image Files
 
-- [ ] **Manifest Accessible**: `/.well-known/farcaster.json` returns valid JSON
-- [ ] **Meta Tags Present**: `fc:miniapp` meta tag in `<head>`
-- [ ] **SDK Initialization**: No console errors on load
-- [ ] **Ready Signal**: Splash screen dismisses properly
-- [ ] **User Context**: User identity displays when in Mini App
-- [ ] **Share Button**: Opens Farcaster cast composer (or copies to clipboard outside Mini App)
-- [ ] **Tip Button**: Opens payment UI with 3 preset amounts
-- [ ] **Wallet Connection**: Connect wallet works (if outside sendToken flow)
-- [ ] **Share Extension**: `/share` page loads and shows cast context
-- [ ] **Standalone Mode**: App works normally in regular browser
+The manifest references these image files at the root level. **You must create/copy them:**
+
+| File | Purpose | Recommended Size |
+|------|---------|------------------|
+| `i.png` | App icon | 200x200 px |
+| `s.png` | Splash screen image | 200x200 px |
+| `og.png` | Open Graph / embed image | 1200x630 px |
+
+You can copy from `Assets/imagine/` or create new optimized versions:
+```bash
+cp Assets/imagine/i.png ./i.png
+cp Assets/imagine/s.png ./s.png
+cp Assets/imagine/f.png ./og.png
+```
 
 ---
 
@@ -166,23 +206,21 @@ https://warpcast.com/~/developers/frames
 
 ```
 cbTARO/
-├── index.html          # Main app (React + Babel)
-├── miniapp.js          # Farcaster SDK integration module
+├── index.html              # Main app (React + Babel)
+├── miniapp.js              # Farcaster SDK integration module
+├── .nojekyll               # Disables Jekyll for GitHub Pages
 ├── share/
-│   └── index.html      # Cast Share Extension endpoint
+│   └── index.html          # Cast Share Extension endpoint (castShareUrl)
 ├── .well-known/
-│   └── farcaster.json  # Mini App manifest (needs root domain hosting)
+│   └── farcaster.json      # Mini App manifest (convenience copy)
+├── i.png                   # App icon (REQUIRED - copy from Assets)
+├── s.png                   # Splash image (REQUIRED - copy from Assets)
+├── og.png                  # OG image (REQUIRED - copy from Assets)
 ├── Assets/
-│   ├── audio/          # Sound effects
-│   └── imagine/        # Images and card art
-│       ├── b.png       # Background
-│       ├── bc.png      # Card back
-│       ├── f.png       # Frame/OG image
-│       ├── i.png       # App icon
-│       ├── s.png       # Splash image
-│       ├── cr.png      # Custom reading button
-│       └── taro_cards/ # All 78 card images
-└── README.md           # This file
+│   ├── audio/              # Sound effects
+│   └── imagine/            # Images and card art
+│       └── taro_cards/     # All 78 card images
+└── README.md               # This file
 ```
 
 ---
@@ -199,63 +237,39 @@ const inMiniApp = await isInMiniApp();
 
 ### Ready Signal
 
-**CRITICAL**: Call `sdk.actions.ready()` AFTER your UI is fully rendered to dismiss the splash screen.
+**CRITICAL**: Call `sdk.actions.ready()` AFTER your UI is fully rendered to dismiss the splash screen. Only call it once.
 
 ```javascript
-await sdk.actions.ready();
-```
-
-### User Context
-
-```javascript
-const context = sdk.context;
-if (context && context.user) {
-  console.log(context.user.fid);        // Farcaster ID
-  console.log(context.user.username);   // Username
-  console.log(context.user.displayName); // Display name
-  console.log(context.user.pfpUrl);     // Profile picture URL
+// Check if action exists before calling
+if (sdk.actions && typeof sdk.actions.ready === 'function') {
+  await sdk.actions.ready();
 }
 ```
 
-### Authentication (Client-Side Demo)
+### Payments (sendToken)
 
-For static apps without a backend, authentication is demonstrative only:
-
-```javascript
-// Quick Auth - returns JWT token
-const { token } = await sdk.quickAuth.getToken();
-
-// Sign In with Farcaster
-const { signature, message } = await sdk.actions.signIn({
-  nonce: 'random-string',
-  acceptAuthAddress: true
-});
-```
-
-### Payments
+The `sendToken` action returns a result object:
 
 ```javascript
-// Using native sendToken (preferred)
-await sdk.actions.sendToken({
+const result = await sdk.actions.sendToken({
   recipientAddress: '0x...',
-  amount: '1000000000000000', // wei
-  // token: 'eip155:8453/erc20:0x...' // for ERC20
+  amount: '1000000000000000' // wei as string
 });
 
-// Fallback: EIP-1193 provider
-const provider = await sdk.wallet.getEthereumProvider();
-await provider.request({
-  method: 'eth_sendTransaction',
-  params: [{ from, to, value }]
-});
+if (result.success) {
+  console.log('Transaction:', result.transactionHash);
+} else {
+  // result.reason: 'rejected_by_user' | 'send_failed' | etc.
+  console.log('Failed:', result.reason);
+}
 ```
 
-### Sharing
+### Sharing (composeCast)
 
 ```javascript
 await sdk.actions.composeCast({
   text: 'Check out my taro reading!',
-  embeds: ['https://0xagcheth.github.io/cbTARO/']
+  embeds: ['https://0xagcheth.github.io/cbTARO/'] // absolute URLs only
 });
 ```
 
@@ -265,12 +279,14 @@ await sdk.actions.composeCast({
 
 - [Farcaster Mini Apps](https://miniapps.farcaster.xyz/)
 - [Publishing Guide](https://miniapps.farcaster.xyz/docs/guides/publishing)
-- [SDK Reference](https://miniapps.farcaster.xyz/docs/sdk)
-- [Authentication](https://miniapps.farcaster.xyz/docs/guides/auth)
-- [Wallet Integration](https://miniapps.farcaster.xyz/docs/guides/wallets)
-- [Sharing](https://miniapps.farcaster.xyz/docs/guides/sharing)
+- [Manifest vs Embed](https://miniapps.farcaster.xyz/docs/guides/manifest-vs-embed)
+- [Loading / ready()](https://miniapps.farcaster.xyz/docs/guides/loading)
 - [Share Extension](https://miniapps.farcaster.xyz/docs/guides/share-extension)
-- [GitHub Pages](https://docs.github.com/en/pages)
+- [Wallets](https://miniapps.farcaster.xyz/docs/guides/wallets)
+- [sendToken](https://miniapps.farcaster.xyz/docs/sdk/actions/send-token)
+- [composeCast](https://miniapps.farcaster.xyz/docs/sdk/actions/compose-cast)
+- [isInMiniApp](https://miniapps.farcaster.xyz/docs/sdk/is-in-mini-app)
+- [Compatibility](https://miniapps.farcaster.xyz/docs/sdk/compatibility)
 
 ---
 

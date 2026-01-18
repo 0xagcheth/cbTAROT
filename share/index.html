@@ -1,278 +1,261 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>cbTARO - Cast Share Extension</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>cbTARO Share Extension</title>
     
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="cbTARO - Mystical Taro Reading" />
-    <meta property="og:description" content="Discover your destiny with AI-powered taro readings. Get a personalized reading from a shared cast!" />
-    <meta property="og:image" content="https://0xagcheth.github.io/cbTARO/Assets/imagine/f.png" />
-    <meta property="og:url" content="https://0xagcheth.github.io/cbTARO/share/" />
-    <meta property="og:type" content="website" />
+    <meta property="og:title" content="cbTARO — Onchain Taro Reading">
+    <meta property="og:description" content="Draw a taro card and share your mystical reading on Farcaster.">
+    <meta property="og:image" content="https://0xagcheth.github.io/cbTARO/og.png">
+    <meta property="og:url" content="https://0xagcheth.github.io/cbTARO/share">
+    <meta property="og:type" content="website">
     
-    <!-- Farcaster Mini App Meta Tags -->
-    <meta name="fc:miniapp" content="true" />
+    <!-- Farcaster Mini App Meta Tag -->
+    <meta name="fc:miniapp" content="true">
     
     <style>
-        * { box-sizing: border-box; }
-        html, body {
-            height: 100%;
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #1a0a2e 0%, #16213e 50%, #0f0f23 100%);
-            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+        
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0b1020 0%, #1a1a2e 50%, #16213e 100%);
             color: #fff;
-            overflow: hidden;
         }
         
         .container {
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 24px;
+            padding-top: calc(24px + env(safe-area-inset-top, 0));
+            padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
             text-align: center;
         }
         
-        .logo {
-            font-size: clamp(2rem, 8vw, 3.5rem);
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 
-                0 0 5px rgba(0, 123, 255, 0.8),
-                0 0 10px rgba(0, 123, 255, 0.6),
-                0 0 15px rgba(0, 123, 255, 0.4);
-            margin-bottom: 1rem;
-            animation: glow 3s ease-in-out infinite;
-        }
-        
-        @keyframes glow {
-            0%, 100% { filter: brightness(1); }
-            50% { filter: brightness(1.2); }
+        .title {
+            font-size: clamp(1.8rem, 6vw, 2.5rem);
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #fff 0%, #a0a0ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         .subtitle {
-            color: rgba(255, 215, 0, 0.9);
-            font-size: clamp(1rem, 4vw, 1.3rem);
-            margin-bottom: 2rem;
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
-        }
-        
-        .cast-info {
-            background: linear-gradient(135deg, rgba(138, 99, 210, 0.2), rgba(99, 102, 241, 0.2));
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(138, 99, 210, 0.3);
-            border-radius: 16px;
-            padding: 20px 24px;
-            margin-bottom: 2rem;
-            max-width: 400px;
-            width: 100%;
-        }
-        
-        .cast-label {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 0.85rem;
-            margin-bottom: 8px;
-        }
-        
-        .cast-value {
-            color: #ffd700;
-            font-size: 0.95rem;
-            word-break: break-all;
-        }
-        
-        .loading {
-            color: rgba(255, 255, 255, 0.7);
             font-size: 1rem;
-            margin-bottom: 2rem;
+            color: rgba(255, 215, 0, 0.9);
+            margin-bottom: 32px;
         }
         
-        .loading::after {
-            content: '';
-            animation: dots 1.5s infinite;
+        .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            width: 100%;
+            max-width: 360px;
         }
         
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .info-value {
+            font-size: 0.9rem;
+            color: #ffd700;
+            font-family: monospace;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .info-value.missing {
+            color: rgba(255, 255, 255, 0.3);
+            font-style: italic;
         }
         
         .cta-button {
-            background: linear-gradient(135deg, rgba(0, 123, 255, 0.6), rgba(99, 102, 241, 0.6));
-            border: 1px solid rgba(0, 123, 255, 0.5);
-            border-radius: 12px;
-            padding: 16px 32px;
+            display: inline-block;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
             color: #fff;
             font-size: 1.1rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
+            font-weight: 600;
+            padding: 16px 40px;
+            border: none;
+            border-radius: 12px;
             text-decoration: none;
-            display: inline-block;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
         }
         
         .cta-button:hover {
-            background: linear-gradient(135deg, rgba(0, 123, 255, 0.8), rgba(99, 102, 241, 0.8));
-            transform: scale(1.02);
-            box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);
         }
         
-        .viewer-info {
-            margin-top: 2rem;
-            padding: 12px 20px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .cta-button:active {
+            transform: translateY(0);
         }
         
-        .viewer-pfp {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            border: 2px solid rgba(138, 99, 210, 0.5);
+        .status {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.4);
         }
         
-        .viewer-name {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.9rem;
+        .status.ready {
+            color: rgba(34, 197, 94, 0.8);
         }
-        
-        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="logo">cbTaro</h1>
-        <p class="subtitle">Cast Share Extension</p>
+        <h1 class="title">cbTARO</h1>
+        <p class="subtitle">Share Extension</p>
         
-        <div id="cast-info" class="cast-info hidden">
-            <div class="cast-label">Shared from cast:</div>
-            <div id="cast-hash" class="cast-value">-</div>
-            <div class="cast-label" style="margin-top: 12px;">Cast Author FID:</div>
-            <div id="cast-fid" class="cast-value">-</div>
+        <div class="info-card">
+            <div class="info-row">
+                <span class="info-label">Cast Hash</span>
+                <span id="cast-hash" class="info-value missing">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Cast FID</span>
+                <span id="cast-fid" class="info-value missing">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Viewer FID</span>
+                <span id="viewer-fid" class="info-value missing">—</span>
+            </div>
         </div>
         
-        <div id="loading" class="loading">Initializing</div>
-        
-        <a id="cta-button" class="cta-button hidden" href="../">
-            Get Your Taro Reading
+        <a id="cta-button" class="cta-button" href="https://0xagcheth.github.io/cbTARO/">
+            Back to cbTARO
         </a>
         
-        <div id="viewer-info" class="viewer-info hidden">
-            <img id="viewer-pfp" class="viewer-pfp" src="" alt="" />
-            <span id="viewer-name" class="viewer-name"></span>
-        </div>
+        <p id="status" class="status">Initializing...</p>
     </div>
 
-    <!-- Farcaster Mini App SDK Integration -->
     <script type="module">
-        import { sdk, isInMiniApp } from 'https://esm.sh/@farcaster/miniapp-sdk';
-        
-        // Parse URL parameters for cast context
-        function parseShareParams() {
+        // Parse query parameters
+        function parseParams() {
             const params = new URLSearchParams(window.location.search);
             return {
-                castHash: params.get('castHash') || params.get('cast_hash'),
-                castFid: params.get('castFid') || params.get('cast_fid'),
-                viewerFid: params.get('viewerFid') || params.get('viewer_fid')
+                castHash: params.get('castHash') || params.get('cast_hash') || null,
+                castFid: params.get('castFid') || params.get('cast_fid') || null,
+                viewerFid: params.get('viewerFid') || params.get('viewer_fid') || null
             };
         }
         
-        // Update UI with cast information
-        function updateCastInfo(castHash, castFid) {
-            const castInfoEl = document.getElementById('cast-info');
+        // Update UI with parsed values
+        function updateUI(data) {
             const castHashEl = document.getElementById('cast-hash');
             const castFidEl = document.getElementById('cast-fid');
+            const viewerFidEl = document.getElementById('viewer-fid');
             
-            if (castHash || castFid) {
-                castInfoEl.classList.remove('hidden');
-                castHashEl.textContent = castHash || 'Not provided';
-                castFidEl.textContent = castFid || 'Not provided';
+            if (data.castHash) {
+                castHashEl.textContent = data.castHash.length > 20 
+                    ? data.castHash.slice(0, 10) + '...' + data.castHash.slice(-6)
+                    : data.castHash;
+                castHashEl.classList.remove('missing');
+            }
+            
+            if (data.castFid) {
+                castFidEl.textContent = data.castFid;
+                castFidEl.classList.remove('missing');
+            }
+            
+            if (data.viewerFid) {
+                viewerFidEl.textContent = data.viewerFid;
+                viewerFidEl.classList.remove('missing');
             }
         }
         
-        // Update UI with viewer information
-        function updateViewerInfo(user) {
-            if (!user) return;
-            
-            const viewerInfoEl = document.getElementById('viewer-info');
-            const viewerPfpEl = document.getElementById('viewer-pfp');
-            const viewerNameEl = document.getElementById('viewer-name');
-            
-            viewerInfoEl.classList.remove('hidden');
-            
-            if (user.pfpUrl) {
-                viewerPfpEl.src = user.pfpUrl;
-                viewerPfpEl.alt = user.displayName || user.username || `FID: ${user.fid}`;
-            } else {
-                viewerPfpEl.style.display = 'none';
-            }
-            
-            viewerNameEl.textContent = user.displayName || `@${user.username}` || `FID: ${user.fid}`;
-        }
-        
-        // Initialize the share extension
-        async function init() {
-            const loadingEl = document.getElementById('loading');
-            const ctaButton = document.getElementById('cta-button');
-            
-            try {
-                // Parse URL parameters
-                const { castHash, castFid, viewerFid } = parseShareParams();
-                
-                // Update cast info in UI
-                updateCastInfo(castHash, castFid);
-                
-                // Check if we're in Mini App environment
-                const inMiniApp = await isInMiniApp();
-                console.log('[Share Extension] In Mini App:', inMiniApp);
-                
-                if (inMiniApp) {
-                    loadingEl.textContent = 'Loading context';
-                    
-                    // Get context (viewer info)
-                    try {
-                        const context = sdk.context;
-                        if (context && context.user) {
-                            updateViewerInfo(context.user);
-                        }
-                    } catch (contextErr) {
-                        console.warn('[Share Extension] Could not get context:', contextErr);
-                    }
-                    
-                    // Signal ready to Farcaster client
-                    await sdk.actions.ready();
-                    console.log('[Share Extension] Ready signal sent');
-                }
-                
-                // Hide loading, show CTA
-                loadingEl.classList.add('hidden');
-                ctaButton.classList.remove('hidden');
-                
-                // Store cast context for the main app
-                if (castHash || castFid || viewerFid) {
-                    sessionStorage.setItem('fc_share_context', JSON.stringify({
-                        castHash,
-                        castFid,
-                        viewerFid,
+        // Store share context for main app
+        function storeContext(data) {
+            if (data.castHash || data.castFid || data.viewerFid) {
+                try {
+                    sessionStorage.setItem('cbtaro_share_context', JSON.stringify({
+                        ...data,
                         timestamp: Date.now()
                     }));
+                } catch (e) {
+                    console.warn('[Share] Could not store context:', e);
                 }
-                
-            } catch (error) {
-                console.error('[Share Extension] Initialization error:', error);
-                loadingEl.textContent = 'Ready!';
-                loadingEl.classList.add('hidden');
-                ctaButton.classList.remove('hidden');
             }
         }
         
-        // Run initialization
+        // Main initialization
+        async function init() {
+            const statusEl = document.getElementById('status');
+            
+            // 1. Parse and display parameters
+            const params = parseParams();
+            updateUI(params);
+            storeContext(params);
+            
+            // 2. Try to load SDK and call ready() if in Mini App
+            try {
+                const { sdk, isInMiniApp } = await import('https://esm.sh/@farcaster/miniapp-sdk');
+                
+                const inMiniApp = await isInMiniApp();
+                console.log('[Share] Environment:', inMiniApp ? 'Mini App' : 'Browser');
+                
+                if (inMiniApp) {
+                    // Get additional context if available
+                    try {
+                        const context = sdk.context;
+                        if (context && context.user && context.user.fid && !params.viewerFid) {
+                            const viewerFidEl = document.getElementById('viewer-fid');
+                            viewerFidEl.textContent = context.user.fid;
+                            viewerFidEl.classList.remove('missing');
+                        }
+                    } catch (e) {
+                        console.warn('[Share] Could not get context:', e);
+                    }
+                    
+                    // Signal ready AFTER UI is rendered
+                    if (sdk.actions && typeof sdk.actions.ready === 'function') {
+                        await sdk.actions.ready();
+                        console.log('[Share] Ready signal sent');
+                        statusEl.textContent = 'Ready';
+                        statusEl.classList.add('ready');
+                    }
+                } else {
+                    statusEl.textContent = 'Standalone mode';
+                }
+            } catch (error) {
+                console.warn('[Share] SDK not available:', error);
+                statusEl.textContent = 'Standalone mode';
+            }
+        }
+        
+        // Run after DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
         } else {
