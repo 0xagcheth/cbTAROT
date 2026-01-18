@@ -1,6 +1,6 @@
-# cbTARO - Mystical Tarot Reading
+# cbTARO - Mystical Taro Reading
 
-A Farcaster Mini App for AI-powered mystical tarot readings. Works inside Farcaster clients (Warpcast, Base App) and as a standalone website.
+A Farcaster Mini App for AI-powered mystical taro readings. Works inside Farcaster clients (Warpcast, Base App) and as a standalone website.
 
 **Live Demo:** https://0xagcheth.github.io/cbTARO/
 
@@ -12,7 +12,7 @@ A Farcaster Mini App for AI-powered mystical tarot readings. Works inside Farcas
 - **Three Card Spread**: Past/Present/Future or Today's Energy/Support/Challenge
 - **Custom AI Reading**: Ask any question and receive personalized AI-powered interpretations
 - **Full 78-Card Deck**: Complete Major and Minor Arcana with detailed meanings
-- **Card Gallery**: Browse all tarot cards and their descriptions
+- **Card Gallery**: Browse all taro cards and their descriptions
 
 ### Farcaster Mini App Features
 
@@ -100,7 +100,7 @@ You must create a **separate repository** to host the manifest at the root domai
     "iconUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/i.png",
     "homeUrl": "https://0xagcheth.github.io/cbTARO/",
     "imageUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/f.png",
-    "buttonTitle": "Get Tarot Reading",
+    "buttonTitle": "Get Taro Reading",
     "splashImageUrl": "https://0xagcheth.github.io/cbTARO/Assets/imagine/s.png",
     "splashBackgroundColor": "#1a0a2e",
     "webhookUrl": ""
@@ -254,7 +254,7 @@ await provider.request({
 
 ```javascript
 await sdk.actions.composeCast({
-  text: 'Check out my tarot reading!',
+  text: 'Check out my taro reading!',
   embeds: ['https://0xagcheth.github.io/cbTARO/']
 });
 ```
