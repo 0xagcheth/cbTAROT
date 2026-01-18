@@ -96,7 +96,8 @@ async function initFarcasterMiniApp() {
  * @param {string} reason - Optional reason for logging
  */
 async function signalReady(reason = 'manual call') {
-  if (window.FarcasterMiniApp.readyCalled) {
+  // Check if HEAD bootstrap already called it
+  if (window.__cbTARO_ready_called || window.FarcasterMiniApp.readyCalled) {
     console.log('[cbTARO miniapp] Ready already called, skipping (' + reason + ')');
     return { success: false, reason: 'already_called' };
   }
@@ -570,9 +571,9 @@ async function sendTip(size = 'small') {
  */
 async function failsafeReadyFlow() {
   try {
-    // Check if bootstrap script already called ready()
-    if (typeof window.__cb_ready_called !== 'undefined' && window.__cb_ready_called) {
-      console.log('[cbTARO miniapp] Ready already called by bootstrap - skipping');
+    // Check if bootstrap script in HEAD already called ready()
+    if (window.__cbTARO_ready_called) {
+      console.log('[cbTARO miniapp] Ready already called by HEAD bootstrap - skipping');
       // Still initialize for other features
       await initFarcasterMiniApp();
       return;
