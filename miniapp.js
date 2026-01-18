@@ -90,32 +90,45 @@ async function initFarcasterMiniApp() {
  * Signal to Farcaster client that the app is ready
  * Call this AFTER your UI is fully rendered
  * Only calls ready() once to prevent issues
+ * 
+ * NOTE: This is now called automatically by failsafeReadyFlow()
+ * but can still be called manually if needed (it will be idempotent)
+ * 
+ * @param {string} reason - Optional reason for logging
  */
-async function signalReady() {
+async function signalReady(reason = 'manual call') {
   if (window.FarcasterMiniApp.readyCalled) {
-    console.log('[FarcasterMiniApp] Ready already called, skipping');
-    return;
+    console.log('[cbTARO miniapp] Ready already called, skipping (' + reason + ')');
+    return { success: false, reason: 'already_called' };
   }
   
-  if (!window.FarcasterMiniApp.isInMiniApp || !window.FarcasterMiniApp.sdk) {
-    console.log('[FarcasterMiniApp] Not in Mini App, skipping ready signal');
-    return;
+  if (!window.FarcasterMiniApp.isInMiniApp) {
+    console.log('[cbTARO miniapp] Not in Mini App, skipping ready signal (' + reason + ')');
+    return { success: false, reason: 'not_in_miniapp' };
+  }
+  
+  if (!window.FarcasterMiniApp.sdk) {
+    console.log('[cbTARO miniapp] SDK not initialized, skipping ready signal (' + reason + ')');
+    return { success: false, reason: 'sdk_not_initialized' };
   }
   
   const sdk = window.FarcasterMiniApp.sdk;
   
   // Check if actions.ready exists before calling
   if (!sdk.actions || typeof sdk.actions.ready !== 'function') {
-    console.warn('[FarcasterMiniApp] sdk.actions.ready not available');
-    return;
+    console.warn('[cbTARO miniapp] sdk.actions.ready not available (' + reason + ')');
+    return { success: false, reason: 'ready_not_available' };
   }
   
   try {
+    console.log('[cbTARO miniapp] Calling ready() - ' + reason);
     await sdk.actions.ready();
     window.FarcasterMiniApp.readyCalled = true;
-    console.log('[FarcasterMiniApp] Ready signal sent');
+    console.log('[cbTARO miniapp] Ready signal sent successfully ✓');
+    return { success: true };
   } catch (error) {
-    console.warn('[FarcasterMiniApp] Ready signal failed:', error);
+    console.error('[cbTARO miniapp] Ready signal failed:', error);
+    return { success: false, reason: 'error', error: error.message };
   }
 }
 
@@ -547,6 +560,69 @@ async function sendTip(size = 'small') {
   });
 }
 
+/**
+ * FAILSAFE READY FLOW
+ * Guarantees sdk.actions.ready() is called exactly once when inside Mini App
+ * This runs automatically after UI renders to prevent infinite splash screen
+ */
+async function failsafeReadyFlow() {
+  try {
+    // Step 1: Initialize SDK and detect environment
+    await initFarcasterMiniApp();
+    
+    // Step 2: Check if we're in Mini App
+    if (!window.FarcasterMiniApp.isInMiniApp) {
+      console.log('[cbTARO miniapp] Not in Mini App environment');
+      return;
+    }
+    
+    console.log('[cbTARO miniapp] In Mini App environment - preparing to call ready()');
+    
+    // Step 3: Wait for UI to fully paint (two RAF is safe for most browsers)
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(resolve);
+      });
+    });
+    
+    // Step 4: Call ready() exactly once
+    const sdk = window.FarcasterMiniApp.sdk;
+    
+    if (window.FarcasterMiniApp.readyCalled) {
+      console.log('[cbTARO miniapp] Ready already called by another flow');
+      return;
+    }
+    
+    if (!sdk || !sdk.actions || typeof sdk.actions.ready !== 'function') {
+      console.warn('[cbTARO miniapp] sdk.actions.ready not available');
+      return;
+    }
+    
+    console.log('[cbTARO miniapp] Calling ready()');
+    await sdk.actions.ready();
+    window.FarcasterMiniApp.readyCalled = true;
+    console.log('[cbTARO miniapp] Ready called successfully ✓');
+    
+  } catch (error) {
+    console.error('[cbTARO miniapp] Failsafe ready flow error:', error);
+    
+    // LAST RESORT: If we errored but we're in Mini App, try to call ready anyway
+    // to avoid infinite splash screen
+    try {
+      if (window.FarcasterMiniApp.isInMiniApp && 
+          !window.FarcasterMiniApp.readyCalled &&
+          window.FarcasterMiniApp.sdk?.actions?.ready) {
+        console.log('[cbTARO miniapp] Emergency fallback: calling ready()');
+        await window.FarcasterMiniApp.sdk.actions.ready();
+        window.FarcasterMiniApp.readyCalled = true;
+        console.log('[cbTARO miniapp] Emergency ready() succeeded');
+      }
+    } catch (fallbackError) {
+      console.error('[cbTARO miniapp] Emergency fallback also failed:', fallbackError);
+    }
+  }
+}
+
 // Export functions to global scope for use in HTML/React
 window.initFarcasterMiniApp = initFarcasterMiniApp;
 window.signalReady = signalReady;
@@ -561,9 +637,11 @@ window.fcCopyToClipboard = copyToClipboardFallback;
 window.TIP_AMOUNTS = TIP_AMOUNTS;
 window.TIP_RECIPIENT = TIP_RECIPIENT;
 
-// Auto-initialize when DOM is ready
+// ROBUST AUTO-INITIALIZATION
+// Runs failsafe ready flow on DOMContentLoaded to guarantee ready() is called
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initFarcasterMiniApp);
+  document.addEventListener('DOMContentLoaded', failsafeReadyFlow, { once: true });
 } else {
-  initFarcasterMiniApp();
+  // DOM already loaded, run immediately
+  failsafeReadyFlow();
 }

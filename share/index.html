@@ -242,12 +242,22 @@
                         console.warn('[Share] Could not get context:', e);
                     }
                     
-                    // Signal ready AFTER UI is rendered
+                    // Wait for UI to fully paint (2 RAF for safety)
+                    await new Promise(resolve => {
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(resolve);
+                        });
+                    });
+                    
+                    // Signal ready AFTER UI is rendered and painted
                     if (sdk.actions && typeof sdk.actions.ready === 'function') {
+                        console.log('[Share] Calling ready()');
                         await sdk.actions.ready();
-                        console.log('[Share] Ready signal sent');
+                        console.log('[Share] Ready signal sent ✓');
                         statusEl.textContent = 'Ready';
                         statusEl.classList.add('ready');
+                    } else {
+                        console.warn('[Share] sdk.actions.ready not available');
                     }
                 } else {
                     statusEl.textContent = 'Standalone mode';

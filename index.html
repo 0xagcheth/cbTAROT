@@ -255,12 +255,8 @@
                 setFcWalletConnected(true);
                 setFcWalletAddress(fcState.walletAddress);
               }
-              // Signal ready to Farcaster client after React has rendered
-              if (fcState.isInMiniApp && window.signalReady) {
-                setTimeout(() => {
-                  window.signalReady();
-                }, 100);
-              }
+              // NOTE: ready() is now called automatically by failsafeReadyFlow in miniapp.js
+              // No manual signalReady() call needed here
             }
           };
 
