@@ -85,24 +85,29 @@ async function detectEnvironment() {
 
 /**
  * Call sdk.actions.ready() exactly once when in Mini App
- * NOTE: HEAD script already calls ready() on load
- * This function is kept for manual triggering if needed
+ * CRITICAL: Sets flag ONLY after success, retries if fails
  */
 async function ready() {
   if (state.readyCalled) {
     console.log('[cbTARO] ready() already called');
     return { success: false, reason: 'already_called' };
   }
-  
-  state.readyCalled = true;
-  
+
   try {
     await sdk.actions.ready();
-    console.log('[cbTARO] ✅ ready() called');
+    state.readyCalled = true; // ✅ ONLY after success
+    console.log('[cbTARO] ✅ ready() called successfully');
     return { success: true };
   } catch (err) {
-    console.error('[cbTARO] ready() failed:', err);
-    return { success: false, reason: err.message };
+    console.warn('[cbTARO] ready() failed (will retry):', err);
+
+    // ✅ Retry after 250ms (often fixes "too early" issue)
+    setTimeout(() => {
+      // Don't block retry: state.readyCalled still false
+      ready().catch(() => {});
+    }, 250);
+
+    return { success: false, reason: err?.message || 'ready_failed' };
   }
 }
 
@@ -473,11 +478,14 @@ async function init() {
     // 2. Detect environment
     await detectEnvironment();
     
-    // 3. Load context (ready() already called by HEAD script)
+    // 3. Call ready() if in Mini App (MANDATORY)
     if (state.inMiniApp) {
+      await ready();
+      
+      // 4. Load context
       state.context = await getContext();
       
-      // 4. Setup provider (lazy loaded on first use)
+      // 5. Setup provider (lazy loaded on first use)
       // Provider will be loaded on-demand by getProvider()
     }
     
