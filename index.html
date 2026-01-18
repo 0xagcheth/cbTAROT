@@ -78,7 +78,7 @@
     <div id="root"></div>
 
     <!-- Farcaster Mini App SDK Integration -->
-    <script type="module" src="https://0xagcheth.github.io/cbTARO/miniapp.js"></script>
+    <script type="module" src="./miniapp.js"></script>
 
     <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
@@ -245,38 +245,64 @@
         // Farcaster Mini App initialization
         useEffect(() => {
           const handleFarcasterReady = (event) => {
-            const fcState = event.detail || window.FarcasterMiniApp;
-            if (fcState) {
-              setFcInMiniApp(fcState.isInMiniApp || false);
-              if (fcState.user) {
-                setFcUser(fcState.user);
+            // New miniapp.js uses window.fc API and dispatches 'farcaster-ready'
+            if (event.detail) {
+              setFcInMiniApp(event.detail.inMiniApp || false);
+              
+              // Load user from context
+              if (event.detail.context?.user) {
+                const user = event.detail.context.user;
+                setFcUser({
+                  fid: user.fid,
+                  username: user.username,
+                  displayName: user.displayName,
+                  pfpUrl: user.pfpUrl
+                });
               }
-              if (fcState.walletAddress) {
+            }
+            
+            // Also check window.fc.state directly
+            if (window.fc?.state) {
+              const state = window.fc.state;
+              setFcInMiniApp(state.inMiniApp || false);
+              
+              if (state.context?.user) {
+                const user = state.context.user;
+                setFcUser({
+                  fid: user.fid,
+                  username: user.username,
+                  displayName: user.displayName,
+                  pfpUrl: user.pfpUrl
+                });
+              }
+              
+              if (state.address) {
                 setFcWalletConnected(true);
-                setFcWalletAddress(fcState.walletAddress);
+                setFcWalletAddress(state.address);
               }
-              // NOTE: ready() is now called automatically by failsafeReadyFlow in miniapp.js
-              // No manual signalReady() call needed here
             }
           };
 
           // Listen for the custom event from miniapp.js
-          window.addEventListener('farcaster-miniapp-ready', handleFarcasterReady);
+          window.addEventListener('farcaster-ready', handleFarcasterReady);
 
           // Check if already initialized
-          if (window.FarcasterMiniApp && window.FarcasterMiniApp.isInitialized) {
-            handleFarcasterReady({ detail: window.FarcasterMiniApp });
+          if (window.fc?.state?.initialized) {
+            handleFarcasterReady({ detail: { 
+              inMiniApp: window.fc.state.inMiniApp,
+              context: window.fc.state.context 
+            }});
           }
 
           return () => {
-            window.removeEventListener('farcaster-miniapp-ready', handleFarcasterReady);
+            window.removeEventListener('farcaster-ready', handleFarcasterReady);
           };
         }, []);
 
         // Farcaster handlers
         const handleFcConnectWallet = async () => {
-          if (!window.fcConnectWallet) return;
-          const result = await window.fcConnectWallet();
+          if (!window.fc?.connectWallet) return;
+          const result = await window.fc.connectWallet();
           if (result.success) {
             setFcWalletConnected(true);
             setFcWalletAddress(result.address);
@@ -284,9 +310,9 @@
         };
 
         const handleFcTip = async (size) => {
-          if (!window.fcSendTip) return;
+          if (!window.fc?.sendTip) return;
           setTipStatus('sending');
-          const result = await window.fcSendTip(size);
+          const result = await window.fc.sendTip(size);
           if (result.success) {
             setTipStatus('success');
             setTimeout(() => {
@@ -305,11 +331,8 @@
             : `🔮 Discover your destiny with cbTARO - AI-powered mystical taro readings!`;
           const shareUrl = 'https://0xagcheth.github.io/cbTARO/';
           
-          if (window.fcComposeCast) {
-            const result = await window.fcComposeCast({
-              text: shareText,
-              embeds: [shareUrl]
-            });
+          if (window.fc?.composeCast) {
+            const result = await window.fc.composeCast(shareText, [shareUrl]);
             if (result.fallback === 'clipboard') {
               setShareStatus('copied');
               setTimeout(() => setShareStatus(null), 2000);
@@ -2376,41 +2399,5 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   }
 }
     </style>
-
-    <!-- Farcaster Ready Bootstrap (Failsafe) -->
-    <!-- Per docs: https://miniapps.farcaster.xyz/docs/getting-started#making-your-app-display -->
-    <script type="module">
-      import { sdk } from "https://esm.sh/@farcaster/miniapp-sdk";
-      let __cb_ready_called = false;
-      async function __cb_ready(reason) {
-        if (__cb_ready_called) return;
-        __cb_ready_called = true;
-        try {
-          if (!sdk?.actions?.ready) return;
-          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-          await sdk.actions.ready();
-          console.log("[cbTARO] sdk.actions.ready():", reason);
-        } catch (e) {
-          console.warn("[cbTARO] ready failed:", e);
-        }
-      }
-      async function __cb_boot() {
-        try {
-          if (typeof sdk?.isInMiniApp === "function") {
-            const inMiniApp = await sdk.isInMiniApp();
-            console.log("[cbTARO] isInMiniApp:", inMiniApp);
-            if (!inMiniApp) return;
-          }
-          await __cb_ready("bootstrap");
-        } catch (e) {
-          await __cb_ready("bootstrap-fallback");
-        }
-      }
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", __cb_boot, { once: true });
-      } else {
-        __cb_boot();
-      }
-    </script>
 </body>
 </html>

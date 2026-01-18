@@ -1,279 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>cbTARO Share Extension</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>cbTARO Share Extension</title>
+  
+  <!-- Farcaster Mini App Embed -->
+  <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
     
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="cbTARO — Onchain Taro Reading">
-    <meta property="og:description" content="Draw a taro card and share your mystical reading on Farcaster.">
-    <meta property="og:image" content="https://0xagcheth.github.io/cbTARO/og.png">
-    <meta property="og:url" content="https://0xagcheth.github.io/cbTARO/share">
-    <meta property="og:type" content="website">
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #0b1020 0%, #1a2332 100%);
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
     
-    <!-- Farcaster Mini App Embed (per spec: content must be stringified JSON) -->
-    <meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
+    .container {
+      max-width: 500px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 32px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
     
-    <!-- Farcaster Frame Meta Tag (backward compatible) -->
-    <meta name="fc:frame" content='{"version":"1","imageUrl":"https://0xagcheth.github.io/cbTARO/og.png","button":{"title":"Open cbTARO","action":{"type":"launch_frame","name":"cbTARO","url":"https://0xagcheth.github.io/cbTARO/","splashImageUrl":"https://0xagcheth.github.io/cbTARO/s.png","splashBackgroundColor":"#0b1020"}}}' />
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
     
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
-        html, body {
-            height: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0b1020 0%, #1a1a2e 50%, #16213e 100%);
-            color: #fff;
-        }
-        
-        .container {
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            padding-top: calc(24px + env(safe-area-inset-top, 0));
-            padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
-            text-align: center;
-        }
-        
-        .title {
-            font-size: clamp(1.8rem, 6vw, 2.5rem);
-            font-weight: 700;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, #fff 0%, #a0a0ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .subtitle {
-            font-size: 1rem;
-            color: rgba(255, 215, 0, 0.9);
-            margin-bottom: 32px;
-        }
-        
-        .info-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 24px;
-            width: 100%;
-            max-width: 360px;
-        }
-        
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        
-        .info-label {
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.5);
-        }
-        
-        .info-value {
-            font-size: 0.9rem;
-            color: #ffd700;
-            font-family: monospace;
-            max-width: 180px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .info-value.missing {
-            color: rgba(255, 255, 255, 0.3);
-            font-style: italic;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            color: #fff;
-            font-size: 1.1rem;
-            font-weight: 600;
-            padding: 16px 40px;
-            border: none;
-            border-radius: 12px;
-            text-decoration: none;
-            cursor: pointer;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
-        }
-        
-        .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);
-        }
-        
-        .cta-button:active {
-            transform: translateY(0);
-        }
-        
-        .status {
-            margin-top: 20px;
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.4);
-        }
-        
-        .status.ready {
-            color: rgba(34, 197, 94, 0.8);
-        }
-    </style>
+    .subtitle {
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    
+    .info {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .info-row:last-child {
+      border-bottom: none;
+    }
+    
+    .info-label {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 13px;
+    }
+    
+    .info-value {
+      color: #fff;
+      font-size: 14px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+      text-decoration: none;
+      display: block;
+      text-align: center;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      opacity: 0.9;
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="title">cbTARO</h1>
-        <p class="subtitle">Share Extension</p>
-        
-        <div class="info-card">
-            <div class="info-row">
-                <span class="info-label">Cast Hash</span>
-                <span id="cast-hash" class="info-value missing">—</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Cast FID</span>
-                <span id="cast-fid" class="info-value missing">—</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Viewer FID</span>
-                <span id="viewer-fid" class="info-value missing">—</span>
-            </div>
-        </div>
-        
-        <a id="cta-button" class="cta-button" href="https://0xagcheth.github.io/cbTARO/">
-            Back to cbTARO
-        </a>
-        
-        <p id="status" class="status">Initializing...</p>
+  <div class="container">
+    <h1>cbTARO Share</h1>
+    <p class="subtitle">Cast shared via Farcaster</p>
+    
+    <div class="info" id="shareInfo">
+      <div class="info-row">
+        <span class="info-label">Cast Hash:</span>
+        <span class="info-value" id="castHash">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Cast FID:</span>
+        <span class="info-value" id="castFid">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Viewer FID:</span>
+        <span class="info-value" id="viewerFid">—</span>
+      </div>
     </div>
-
-    <script type="module">
-        // Parse query parameters
-        function parseParams() {
-            const params = new URLSearchParams(window.location.search);
-            return {
-                castHash: params.get('castHash') || params.get('cast_hash') || null,
-                castFid: params.get('castFid') || params.get('cast_fid') || null,
-                viewerFid: params.get('viewerFid') || params.get('viewer_fid') || null
-            };
-        }
-        
-        // Update UI with parsed values
-        function updateUI(data) {
-            const castHashEl = document.getElementById('cast-hash');
-            const castFidEl = document.getElementById('cast-fid');
-            const viewerFidEl = document.getElementById('viewer-fid');
+    
+    <a href="/cbTARO/" class="btn">Back to cbTARO</a>
+  </div>
+  
+  <script type="module">
+    // Import Farcaster SDK
+    import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk@0.0.59';
+    
+    // Parse URL parameters
+    function getParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        castHash: params.get('castHash') || null,
+        castFid: params.get('castFid') || null,
+        viewerFid: params.get('viewerFid') || null
+      };
+    }
+    
+    // Display share context
+    function displayShareContext(params) {
+      document.getElementById('castHash').textContent = params.castHash || 'N/A';
+      document.getElementById('castFid').textContent = params.castFid || 'N/A';
+      document.getElementById('viewerFid').textContent = params.viewerFid || 'N/A';
+      
+      // Store in sessionStorage
+      if (params.castHash || params.castFid || params.viewerFid) {
+        sessionStorage.setItem('cbtaro_share_context', JSON.stringify(params));
+        console.log('[cbTARO share] Context stored:', params);
+      }
+    }
+    
+    // Initialize
+    async function init() {
+      console.log('[cbTARO share] Initializing share extension...');
+      
+      // Display params
+      const params = getParams();
+      displayShareContext(params);
+      
+      // Call ready() if in Mini App
+      try {
+        if (typeof sdk?.isInMiniApp === 'function') {
+          const inMiniApp = await sdk.isInMiniApp();
+          console.log('[cbTARO share] In Mini App:', inMiniApp);
+          
+          if (inMiniApp && sdk?.actions?.ready) {
+            // Wait for UI to render
+            await new Promise(resolve => 
+              requestAnimationFrame(() => requestAnimationFrame(resolve))
+            );
             
-            if (data.castHash) {
-                castHashEl.textContent = data.castHash.length > 20 
-                    ? data.castHash.slice(0, 10) + '...' + data.castHash.slice(-6)
-                    : data.castHash;
-                castHashEl.classList.remove('missing');
-            }
-            
-            if (data.castFid) {
-                castFidEl.textContent = data.castFid;
-                castFidEl.classList.remove('missing');
-            }
-            
-            if (data.viewerFid) {
-                viewerFidEl.textContent = data.viewerFid;
-                viewerFidEl.classList.remove('missing');
-            }
+            await sdk.actions.ready();
+            console.log('[cbTARO share] ✅ ready() called');
+          }
         }
-        
-        // Store share context for main app
-        function storeContext(data) {
-            if (data.castHash || data.castFid || data.viewerFid) {
-                try {
-                    sessionStorage.setItem('cbtaro_share_context', JSON.stringify({
-                        ...data,
-                        timestamp: Date.now()
-                    }));
-                } catch (e) {
-                    console.warn('[Share] Could not store context:', e);
-                }
-            }
-        }
-        
-        // Main initialization
-        async function init() {
-            const statusEl = document.getElementById('status');
-            
-            // 1. Parse and display parameters
-            const params = parseParams();
-            updateUI(params);
-            storeContext(params);
-            
-            // 2. Try to load SDK and call ready() if in Mini App
-            try {
-                const { sdk, isInMiniApp } = await import('https://esm.sh/@farcaster/miniapp-sdk');
-                
-                const inMiniApp = await isInMiniApp();
-                console.log('[Share] Environment:', inMiniApp ? 'Mini App' : 'Browser');
-                
-                if (inMiniApp) {
-                    // Get additional context if available
-                    try {
-                        const context = sdk.context;
-                        if (context && context.user && context.user.fid && !params.viewerFid) {
-                            const viewerFidEl = document.getElementById('viewer-fid');
-                            viewerFidEl.textContent = context.user.fid;
-                            viewerFidEl.classList.remove('missing');
-                        }
-                    } catch (e) {
-                        console.warn('[Share] Could not get context:', e);
-                    }
-                    
-                    // Wait for UI to fully paint (2 RAF for safety)
-                    await new Promise(resolve => {
-                        requestAnimationFrame(() => {
-                            requestAnimationFrame(resolve);
-                        });
-                    });
-                    
-                    // Signal ready AFTER UI is rendered and painted
-                    if (sdk.actions && typeof sdk.actions.ready === 'function') {
-                        console.log('[Share] Calling ready()');
-                        await sdk.actions.ready();
-                        console.log('[Share] Ready signal sent ✓');
-                        statusEl.textContent = 'Ready';
-                        statusEl.classList.add('ready');
-                    } else {
-                        console.warn('[Share] sdk.actions.ready not available');
-                    }
-                } else {
-                    statusEl.textContent = 'Standalone mode';
-                }
-            } catch (error) {
-                console.warn('[Share] SDK not available:', error);
-                statusEl.textContent = 'Standalone mode';
-            }
-        }
-        
-        // Run after DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-    </script>
+      } catch (err) {
+        console.error('[cbTARO share] Init error:', err);
+      }
+    }
+    
+    // Run on load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
 </body>
 </html>
