@@ -251,6 +251,7 @@
         const [isPaying, setIsPaying]=useState(false);
         const [lastTx, setLastTx]=useState("");
         const [payError, setPayError]=useState("");
+        const [sdkReady, setSdkReady]=useState(false);
 
         useEffect(() => {
           return () => {
@@ -302,6 +303,7 @@
               
               await sdk.actions.ready();
               console.log('Farcaster Mini App ready signal sent');
+              setSdkReady(true);
             } catch (error) {
               console.warn('Farcaster ready() failed:', error);
             }
@@ -327,13 +329,53 @@
           return addr.slice(0, 6) + "…" + addr.slice(-4);
         }
 
-        async function getProvider() {
-          const sdk = window.__FC_SDK__;
-          if (sdk?.wallet?.getEthereumProvider) {
-            return await sdk.wallet.getEthereumProvider();
+        // Wait for Farcaster SDK to load (fixes race condition)
+        async function waitForFarcasterSdk(timeoutMs = 8000) {
+          const start = Date.now();
+          while (!window.__FC_SDK__) {
+            if (Date.now() - start > timeoutMs) {
+              console.warn("Farcaster SDK timeout after", timeoutMs, "ms");
+              return null;
+            }
+            await new Promise(r => setTimeout(r, 50));
           }
+          console.log("Farcaster SDK ready");
+          return window.__FC_SDK__;
+        }
+
+        async function getProvider() {
+          // Wait for SDK to load if not ready
+          const sdk = await waitForFarcasterSdk();
+          
+          if (sdk?.wallet?.getEthereumProvider) {
+            try {
+              const provider = await sdk.wallet.getEthereumProvider();
+              console.log("Provider obtained from Farcaster SDK", {
+                hasRequest: !!provider?.request,
+                hasOn: !!provider?.on,
+                providerType: provider?.constructor?.name || typeof provider
+              });
+              return provider;
+            } catch (e) {
+              console.warn("getEthereumProvider failed:", e);
+            }
+          }
+          
           // Fallback for browser (MetaMask, etc.)
-          if (window.ethereum?.request) return window.ethereum;
+          if (window.ethereum?.request) {
+            console.log("Provider obtained from window.ethereum", {
+              hasRequest: !!window.ethereum?.request,
+              hasOn: !!window.ethereum?.on
+            });
+            return window.ethereum;
+          }
+          
+          console.error("No wallet provider found. SDK state:", {
+            sdkExists: !!sdk,
+            hasWallet: !!sdk?.wallet,
+            hasGetProvider: !!sdk?.wallet?.getEthereumProvider,
+            hasWindowEthereum: !!window.ethereum
+          });
           return null;
         }
 
@@ -360,43 +402,63 @@
           setIsPaying(true);
 
           try {
+            console.log("PAY: Starting payment for", ethAmount, "ETH");
+            
             const provider = await getProvider();
-            if (!provider) throw new Error("No wallet provider");
+            if (!provider) {
+              throw new Error("Wallet provider not found. Farcaster SDK not ready or wallet not available.");
+            }
+
+            console.log("PAY: Provider ready, has request:", !!provider?.request);
 
             // 1) Ensure account is connected
+            console.log("PAY: Requesting accounts...");
             const accounts = await provider.request({ method: "eth_requestAccounts" });
             const from = accounts?.[0];
             if (!from) throw new Error("No account connected");
             
+            console.log("PAY: Connected account:", from);
+            
             // Update wallet address if not set
             if (!walletAddress) setWalletAddress(from);
 
-            // 2) Optional: Check network (Base = 0x2105 / 8453)
-            const chainId = await provider.request({ method: "eth_chainId" });
-            // Uncomment to enforce Base network:
+            // 2) Check network
+            let chainId;
+            try {
+              chainId = await provider.request({ method: "eth_chainId" });
+              console.log("PAY: Current chainId:", chainId);
+            } catch (e) {
+              console.warn("PAY: chainId check failed:", e);
+            }
+            
+            // Uncomment to enforce Base network (0x2105 = 8453):
             // if (chainId !== "0x2105") throw new Error("Please switch to Base network");
 
             // 3) Build transaction
+            const valueWei = ethToWeiHex(ethAmount);
             const tx = {
               from,
               to: PAYMENT_TO,
-              value: ethToWeiHex(ethAmount),
+              value: valueWei,
               // gas/maxFeePerGas usually auto-estimated by wallet
             };
 
+            console.log("PAY: Transaction prepared:", { to: PAYMENT_TO, ethAmount, valueWei });
+
             // 4) Send transaction
+            console.log("PAY: Requesting eth_sendTransaction...");
             const txHash = await provider.request({
               method: "eth_sendTransaction",
               params: [tx],
             });
 
             setLastTx(txHash || "");
-            console.log("Payment tx:", txHash);
+            console.log("PAY: ✅ Payment successful! txHash:", txHash);
             return txHash;
           } catch (e) {
             const errorMsg = e?.message || String(e);
             setPayError(errorMsg);
-            console.error("Payment failed:", errorMsg);
+            console.error("PAY: ❌ Payment failed:", errorMsg, e);
             throw e;
           } finally {
             setIsPaying(false);
@@ -555,11 +617,26 @@ Important: This must be a unique interpretation for this specific card spread. M
 
           if (spread === "ONE" || spread === "THREE" || spread === "CUSTOM") {
             try {
-              // Payment gating: charge based on spread type
+              // Single card is FREE - no payment required
+              if (spread === "ONE") {
+                console.log("Starting free single card reading");
+                await startSpreadAnimation(spread);
+                return;
+              }
+
+              // Payment gating for THREE and CUSTOM spreads
               let price;
-              if (spread === "ONE") price = PRICE_ONE;
-              else if (spread === "THREE") price = PRICE_THREE;
+              if (spread === "THREE") price = PRICE_THREE;
               else if (spread === "CUSTOM") price = PRICE_CUSTOM;
+
+              // Ensure wallet is connected before payment (helps with WebView stability)
+              if (!walletAddress) {
+                console.log("Wallet not connected, connecting first...");
+                await connectWallet();
+                if (!walletAddress) {
+                  throw new Error("Wallet connection required for payment");
+                }
+              }
 
               // Request payment
               const txHash = await pay(price);
@@ -899,14 +976,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                                   </div>
                                 </div>
                               </div>
-                              <div style={{
-                                fontSize: '0.75rem',
-                                color: 'rgba(255,255,255,0.7)',
-                                marginTop: '0.5rem',
-                                textAlign: 'center'
-                              }}>
-                                {PRICE_ONE} ETH
-                              </div>
                             </div>
 
                             <div
@@ -956,14 +1025,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                                   </div>
                                 </div>
                               </div>
-                              <div style={{
-                                fontSize: '0.75rem',
-                                color: 'rgba(255,255,255,0.7)',
-                                marginTop: '0.5rem',
-                                textAlign: 'center'
-                              }}>
-                                {PRICE_THREE} ETH
-                              </div>
                             </div>
                           </div>
 
@@ -1009,14 +1070,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                                 className="custom-reading-underlay-image"
                               />
                             </button>
-                            <div style={{
-                              fontSize: '0.75rem',
-                              color: 'rgba(255,255,255,0.7)',
-                              marginTop: '0.5rem',
-                              textAlign: 'center'
-                            }}>
-                              Custom: {PRICE_CUSTOM} ETH
-                            </div>
                           </div>
                         </div>
                       )}
@@ -1273,11 +1326,58 @@ Important: This must be a unique interpretation for this specific card spread. M
               {walletAddress ? (
                 <span className="addr">{shorten(walletAddress)}</span>
               ) : (
-                <button onClick={connectWallet} disabled={isConnecting}>
-                  {isConnecting ? "Connecting…" : "Connect"}
+                <button onClick={connectWallet} disabled={isConnecting || !sdkReady}>
+                  {isConnecting ? "Connecting…" : !sdkReady ? "Loading…" : "Connect"}
                 </button>
               )}
+              {/* SDK status indicator (dev mode - remove in production) */}
+              {!sdkReady && (
+                <div style={{ 
+                  fontSize: '9px', 
+                  opacity: 0.5, 
+                  color: '#ffa500',
+                  position: 'absolute',
+                  bottom: '-14px',
+                  left: '0',
+                  whiteSpace: 'nowrap'
+                }}>
+                  SDK loading...
+                </div>
+              )}
             </div>
+
+            {/* Payment overlay - full screen indicator */}
+            {isPaying && (
+              <div style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "rgba(0,0,0,0.8)",
+                backdropFilter: "blur(4px)",
+                zIndex: 10000,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff"
+              }}>
+                <div style={{
+                  fontSize: "48px",
+                  marginBottom: "1rem",
+                  animation: "pulse 1.5s ease-in-out infinite"
+                }}>
+                  💳
+                </div>
+                <div style={{ fontSize: "1.2rem", fontWeight: "bold", marginBottom: "0.5rem" }}>
+                  Processing Payment
+                </div>
+                <div style={{ fontSize: "0.9rem", opacity: 0.8 }}>
+                  Please confirm in your wallet...
+                </div>
+              </div>
+            )}
 
             {/* Optional: show error for debugging */}
             {walletError ? (
@@ -1324,6 +1424,9 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 25%{transform:translateX(1px) scale(1.005);}
 50%{transform:translateX(0px) scale(1);}
 75%{transform:translateX(-1px) scale(0.995);}
+}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1;}
+50%{transform:scale(1.1);opacity:0.8;}
 }
 @keyframes liquidShimmer{0%{opacity:0.3;filter:hue-rotate(0deg);}
 100%{opacity:0.7;filter:hue-rotate(10deg);}
