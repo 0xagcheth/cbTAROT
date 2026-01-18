@@ -85,20 +85,10 @@ async function detectEnvironment() {
 
 /**
  * Call sdk.actions.ready() exactly once when in Mini App
- * This dismisses the splash screen
+ * NOTE: HEAD script already calls ready() on load
+ * This function is kept for manual triggering if needed
  */
 async function ready() {
-  // Check if HEAD bootstrap already called ready()
-  if (window.__cbTARO_ready_called) {
-    console.log('[cbTARO] ready() already called by HEAD bootstrap');
-    return { success: false, reason: 'already_called_by_bootstrap' };
-  }
-  
-  if (!state.inMiniApp) {
-    console.log('[cbTARO] Not in Mini App, skipping ready()');
-    return { success: false, reason: 'not_in_miniapp' };
-  }
-  
   if (state.readyCalled) {
     console.log('[cbTARO] ready() already called');
     return { success: false, reason: 'already_called' };
@@ -107,20 +97,9 @@ async function ready() {
   state.readyCalled = true;
   
   try {
-    if (!sdk?.actions?.ready) {
-      console.warn('[cbTARO] sdk.actions.ready not available');
-      return { success: false, reason: 'not_available' };
-    }
-    
-    // Wait for UI to render (2 RAF ticks)
-    await new Promise(resolve => 
-      requestAnimationFrame(() => requestAnimationFrame(resolve))
-    );
-    
     await sdk.actions.ready();
-    console.log('[cbTARO] ✅ ready() called successfully');
+    console.log('[cbTARO] ✅ ready() called');
     return { success: true };
-    
   } catch (err) {
     console.error('[cbTARO] ready() failed:', err);
     return { success: false, reason: err.message };
@@ -494,19 +473,11 @@ async function init() {
     // 2. Detect environment
     await detectEnvironment();
     
-    // 3. Call ready() if in Mini App (MANDATORY)
+    // 3. Load context (ready() already called by HEAD script)
     if (state.inMiniApp) {
-      if (!window.__cbTARO_ready_called) {
-        await ready();
-      } else {
-        console.log('[cbTARO] Skipping ready() - already called by HEAD bootstrap');
-        state.readyCalled = true;
-      }
-      
-      // 4. Load context
       state.context = await getContext();
       
-      // 5. Setup provider (lazy loaded on first use)
+      // 4. Setup provider (lazy loaded on first use)
       // Provider will be loaded on-demand by getProvider()
     }
     
