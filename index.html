@@ -108,12 +108,53 @@
       const PRICE_CUSTOM = "0.001";   // Custom reading
       const REQUIRED_CHAIN_ID = "0x2105"; // Base mainnet (8453) - uncomment enforcement if needed
       
+      // Price constants as BigInt (wei) to avoid runtime conversions
+      // NOTE: These are available but currently using string prices (PRICE_THREE/PRICE_CUSTOM)
+      // for consistency with ethToWeiHex converter
+      const PRICE_THREE_WEI = 500000000000000n;   // 0.0005 ETH in wei
+      const PRICE_CUSTOM_WEI = 1000000000000000n; // 0.001 ETH in wei
+      
       // ETH to wei(hex) converter (no libraries needed)
       function ethToWeiHex(ethStr) {
         const [whole, frac = ""] = String(ethStr).split(".");
         const fracPadded = (frac + "0".repeat(18)).slice(0, 18);
         const wei = BigInt(whole || "0") * 10n ** 18n + BigInt(fracPadded || "0");
         return "0x" + wei.toString(16);
+      }
+
+      // BigInt to wei hex (safe version)
+      function weiToHex(wei) {
+        return "0x" + wei.toString(16);
+      }
+
+      // Safe BigInt to ETH string converter (avoids Number overflow)
+      // CRITICAL: Never use Number(bigint) - it causes "Cannot convert BigInt to number" errors
+      // This function safely converts wei (BigInt) to ETH string without Number() conversion
+      function weiToEthString(wei) {
+        const weiStr = wei.toString();
+        const len = weiStr.length;
+        
+        if (len <= 18) {
+          // Less than 1 ETH
+          const padded = weiStr.padStart(18, '0');
+          const ethStr = '0.' + padded;
+          // Remove trailing zeros
+          return ethStr.replace(/\.?0+$/, '') || '0';
+        } else {
+          // More than 1 ETH
+          const intPart = weiStr.slice(0, len - 18);
+          const fracPart = weiStr.slice(len - 18);
+          const ethStr = intPart + '.' + fracPart;
+          // Remove trailing zeros
+          return ethStr.replace(/\.?0+$/, '');
+        }
+      }
+
+      // Safe JSON stringify that handles BigInt
+      function safeStringify(obj) {
+        return JSON.stringify(obj, (_, value) => 
+          typeof value === "bigint" ? value.toString() : value
+        );
       }
 
       // Promise timeout wrapper
@@ -448,15 +489,19 @@
           const balanceWei = BigInt(balHex);
           const neededWei = BigInt(ethToWeiHex(neededEth));
           
-          const balanceEth = Number(balanceWei) / 1e18;
-          console.log("PAY: Balance check:", {
-            balance: balanceEth.toFixed(6) + " ETH",
+          // Safe conversion: BigInt -> string, no Number() conversion
+          const balanceEth = weiToEthString(balanceWei);
+          
+          console.log("PAY: Balance check:", safeStringify({
+            balance: balanceEth + " ETH",
             needed: neededEth + " ETH",
-            enough: balanceWei >= neededWei
-          });
+            enough: balanceWei >= neededWei,
+            balanceWei: balanceWei.toString(),
+            neededWei: neededWei.toString()
+          }));
 
           if (balanceWei < neededWei) {
-            throw new Error(`Insufficient balance. Need ${neededEth} ETH + gas. You have ${balanceEth.toFixed(6)} ETH.`);
+            throw new Error(`Insufficient balance. Need ${neededEth} ETH + gas. You have ${balanceEth} ETH.`);
           }
         }
 
@@ -476,7 +521,8 @@
               });
               
               if (receipt) {
-                console.log("PAY: Receipt received after", attempts, "attempts:", receipt);
+                console.log("PAY: Receipt received after", attempts, "attempts");
+                console.log("PAY: Receipt data:", safeStringify(receipt));
                 
                 // Check transaction status
                 if (receipt.status && receipt.status !== "0x1") {
@@ -486,8 +532,8 @@
                 return receipt;
               }
             } catch (e) {
-              if (e.message.includes("failed on-chain")) throw e;
-              console.warn("PAY: Receipt check attempt", attempts, "failed:", e);
+              if (e.message && e.message.includes("failed on-chain")) throw e;
+              console.warn("PAY: Receipt check attempt", attempts, "failed:", e?.message || String(e));
             }
             
             await new Promise(r => setTimeout(r, 2000)); // Check every 2 seconds
@@ -520,7 +566,13 @@
           setPaymentStep("");
 
           try {
-            console.log("PAY: 🚀 Starting payment for", ethAmount, "ETH");
+            // Safety check: ensure ethAmount is string (not BigInt)
+            if (typeof ethAmount === 'bigint') {
+              console.warn("PAY: Received BigInt ethAmount, converting to string");
+              ethAmount = weiToEthString(ethAmount);
+            }
+            
+            console.log("PAY: 🚀 Starting payment for", ethAmount, "ETH", "(type:", typeof ethAmount, ")");
             
             // Step 1: Get provider
             const provider = await getProviderOrThrow();
@@ -551,7 +603,7 @@
               value: valueWei,
             };
 
-            console.log("PAY: 💳 Sending transaction...", { to: PAYMENT_TO, ethAmount, valueWei });
+            console.log("PAY: 💳 Sending transaction...", safeStringify({ to: PAYMENT_TO, ethAmount, valueWei }));
             
             const txHash = await withTimeout(
               provider.request({
@@ -571,16 +623,37 @@
             console.log("PAY: ⏳ Waiting for confirmation...");
             const receipt = await waitReceipt(provider, txHash, 90000);
             
-            console.log("PAY: ✅ Payment confirmed! Block:", receipt.blockNumber);
+            console.log("PAY: ✅ Payment confirmed!", safeStringify({ 
+              blockNumber: receipt.blockNumber,
+              status: receipt.status,
+              txHash 
+            }));
             setPaymentStep("complete");
             
             return txHash;
           } catch (e) {
-            const errorMsg = e?.message || String(e);
+            // Safe error handling - avoid BigInt in error messages
+            let errorMsg;
+            try {
+              errorMsg = e?.message || String(e);
+            } catch (stringifyError) {
+              errorMsg = "Payment failed";
+            }
+            
             setPayError(errorMsg);
             setPaymentStep("error");
-            console.error("PAY: ❌ Payment failed at step:", paymentStep || "init", errorMsg, e);
-            throw e;
+            
+            // Safe error logging
+            try {
+              console.error("PAY: ❌ Payment failed at step:", paymentStep || "init", errorMsg);
+              if (e && typeof e === 'object') {
+                console.error("PAY: Error details:", safeStringify(e));
+              }
+            } catch (logError) {
+              console.error("PAY: ❌ Payment failed (error logging failed)");
+            }
+            
+            throw new Error(errorMsg);
           } finally {
             setIsPaying(false);
           }
