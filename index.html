@@ -73,6 +73,38 @@
     <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7.26.2/babel.min.js"></script>
 
+    <!-- Global error logger to locate BigInt conversion issues -->
+    <script>
+      (function() {
+        const errors = [];
+        window.__APP_ERRORS__ = errors;
+
+        window.addEventListener('error', (event) => {
+          const info = {
+            type: 'error',
+            message: event?.message || '',
+            stack: event?.error?.stack || '',
+            filename: event?.filename || '',
+            lineno: event?.lineno,
+            colno: event?.colno,
+          };
+          errors.push(info);
+          console.error('GLOBAL_ERROR', info);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+          const reason = event?.reason;
+          const info = {
+            type: 'unhandledrejection',
+            message: reason?.message || String(reason || ''),
+            stack: reason?.stack || '',
+          };
+          errors.push(info);
+          console.error('GLOBAL_UNHANDLED_REJECTION', info);
+        });
+      })();
+    </script>
+
     <!-- Farcaster Mini App SDK integration -->
     <script type="module">
       import { sdk } from "https://esm.sh/@farcaster/miniapp-sdk";
@@ -582,6 +614,8 @@
               console.warn("PAY: Received BigInt ethAmount, converting to string");
               ethAmount = weiToEthString(ethAmount);
             }
+            // Normalize to string to avoid implicit Number conversions elsewhere
+            ethAmount = String(ethAmount);
             
             console.log("PAY: 🚀 Starting payment for", ethAmount, "ETH", "(type:", typeof ethAmount, ")");
             
