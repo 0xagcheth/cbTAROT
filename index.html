@@ -143,6 +143,9 @@
       const PRICE_THREE = "0.0005";   // 3 cards
       const PRICE_CUSTOM = "0.001";   // Custom reading
       const REQUIRED_CHAIN_ID = "0x2105"; // Base mainnet (8453) - uncomment enforcement if needed
+
+      // Toggle direct provider fallback (keep false to force Farcaster sendToken)
+      const ALLOW_PROVIDER_FALLBACK = false;
       
       // Price constants as BigInt (wei) to avoid runtime conversions
       // NOTE: These are available but currently using string prices (PRICE_THREE/PRICE_CUSTOM)
@@ -627,37 +630,38 @@
             
             console.log("PAY: 🚀 Starting payment for", ethAmount, "ETH", "(type:", typeof ethAmount, ")");
 
-            // ---- Path A: Farcaster MiniApp native action (preferred) ----
-            try {
-              const sdk = window.__FC_SDK__;
-              if (sdk?.actions?.sendToken) {
-                setPaymentStep("sendToken");
-                const amountWei = ethToWeiString(ethAmount);
-                console.log("PAY: Using Farcaster sendToken", { amountWei, to: PAYMENT_TO });
-                const res = await sdk.actions.sendToken({
-                  token: "eip155:8453/native", // Base mainnet native ETH
-                  amount: amountWei,           // decimal string in wei
-                  recipientAddress: PAYMENT_TO
-                });
+            // ---- Path A: Farcaster MiniApp native action (preferred & enforced) ----
+            const sdk = window.__FC_SDK__;
+            if (!sdk?.actions?.sendToken) {
+              throw new Error("Farcaster sendToken not available. Open in Warpcast or update app.");
+            }
 
-                if (!res?.success) {
-                  const reason = res?.error?.message || res?.reason || "sendToken failed";
-                  console.warn("PAY: sendToken returned failure", res);
-                  throw new Error(reason);
-                }
+            setPaymentStep("sendToken");
+            const amountWei = ethToWeiString(ethAmount);
+            console.log("PAY: Using Farcaster sendToken", { amountWei, to: PAYMENT_TO });
+            const res = await sdk.actions.sendToken({
+              token: "eip155:8453/native", // Base mainnet native ETH
+              amount: amountWei,           // decimal string in wei
+              recipientAddress: PAYMENT_TO
+            });
 
-                const txHash = res?.send?.transaction || "";
-                setLastTx(txHash);
-                setPaymentStep("complete");
-                console.log("PAY: ✅ sendToken success", { txHash });
-                return txHash;
-              }
-            } catch (miniAppErr) {
-              console.warn("PAY: sendToken path failed, falling back to provider", miniAppErr);
-              // Fall through to provider flow
+            if (!res?.success) {
+              const reason = res?.error?.message || res?.reason || "sendToken failed";
+              console.warn("PAY: sendToken returned failure", res);
+              if (!ALLOW_PROVIDER_FALLBACK) throw new Error(reason);
+              // else fall through
+            } else {
+              const txHash = res?.send?.transaction || "";
+              setLastTx(txHash);
+              setPaymentStep("complete");
+              console.log("PAY: ✅ sendToken success", { txHash });
+              return txHash;
             }
             
             // ---- Path B: Direct provider flow (fallback) ----
+            if (!ALLOW_PROVIDER_FALLBACK) {
+              throw new Error("Payment failed via sendToken and provider fallback disabled.");
+            }
 
             // Step 1: Get provider
             const provider = await getProviderOrThrow();
