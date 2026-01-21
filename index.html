@@ -87,6 +87,10 @@
     </script>
 
     <script type="text/babel">
+      // CRITICAL FIX: Global BigInt serialization
+      // This prevents "Cannot convert a BigInt value to a number" errors
+      BigInt.prototype.toJSON = function() { return this.toString(); };
+      
       const { useState, useRef, useEffect }=React;
 
       // Use global ASSET function (defined in script above)
@@ -492,13 +496,13 @@
           // Safe conversion: BigInt -> string, no Number() conversion
           const balanceEth = weiToEthString(balanceWei);
           
-          console.log("PAY: Balance check:", safeStringify({
+          console.log("PAY: Balance check:", {
             balance: balanceEth + " ETH",
-            needed: neededEth + " ETH",
+            needed: String(neededEth) + " ETH",
             enough: balanceWei >= neededWei,
             balanceWei: balanceWei.toString(),
             neededWei: neededWei.toString()
-          }));
+          });
 
           if (balanceWei < neededWei) {
             throw new Error(`Insufficient balance. Need ${neededEth} ETH + gas. You have ${balanceEth} ETH.`);
@@ -522,7 +526,11 @@
               
               if (receipt) {
                 console.log("PAY: Receipt received after", attempts, "attempts");
-                console.log("PAY: Receipt data:", safeStringify(receipt));
+                console.log("PAY: Receipt data:", {
+                  blockNumber: String(receipt.blockNumber || ''),
+                  transactionHash: String(receipt.transactionHash || ''),
+                  status: String(receipt.status || '')
+                });
                 
                 // Check transaction status
                 if (receipt.status && receipt.status !== "0x1") {
@@ -553,8 +561,11 @@
             const addr = accounts?.[0] || "";
             if (!addr) throw new Error("No accounts returned");
             setWalletAddress(addr);
+            return addr;
           } catch (e) {
-            setWalletError(e?.message || String(e));
+            const msg = e?.message || String(e);
+            setWalletError(msg);
+            return null;
           } finally {
             setIsConnecting(false);
           }
@@ -597,13 +608,19 @@
             // Step 5: Build and send transaction
             setPaymentStep("sendTx");
             const valueWei = ethToWeiHex(ethAmount);
+            
+            // CRITICAL: Ensure all tx fields are strings (prevent BigInt leaks)
             const tx = {
-              from,
-              to: PAYMENT_TO,
-              value: valueWei,
+              from: String(from),
+              to: String(PAYMENT_TO),
+              value: String(valueWei),
             };
 
-            console.log("PAY: 💳 Sending transaction...", safeStringify({ to: PAYMENT_TO, ethAmount, valueWei }));
+            console.log("PAY: 💳 Sending transaction...", { 
+              to: String(PAYMENT_TO), 
+              ethAmount: String(ethAmount), 
+              valueWei: String(valueWei) 
+            });
             
             const txHash = await withTimeout(
               provider.request({
@@ -623,11 +640,11 @@
             console.log("PAY: ⏳ Waiting for confirmation...");
             const receipt = await waitReceipt(provider, txHash, 90000);
             
-            console.log("PAY: ✅ Payment confirmed!", safeStringify({ 
-              blockNumber: receipt.blockNumber,
-              status: receipt.status,
-              txHash 
-            }));
+            console.log("PAY: ✅ Payment confirmed!", { 
+              blockNumber: String(receipt.blockNumber),
+              status: String(receipt.status),
+              txHash: String(txHash)
+            });
             setPaymentStep("complete");
             
             return txHash;
@@ -645,9 +662,15 @@
             
             // Safe error logging
             try {
-              console.error("PAY: ❌ Payment failed at step:", paymentStep || "init", errorMsg);
+              console.error("PAY: ❌ Payment failed at step:", String(paymentStep || "init"), String(errorMsg));
               if (e && typeof e === 'object') {
-                console.error("PAY: Error details:", safeStringify(e));
+                // Extract only serializable error properties
+                const errorInfo = {
+                  message: String(e.message || ''),
+                  code: e.code ? String(e.code) : undefined,
+                  name: String(e.name || '')
+                };
+                console.error("PAY: Error details:", errorInfo);
               }
             } catch (logError) {
               console.error("PAY: ❌ Payment failed (error logging failed)");
@@ -824,10 +847,12 @@ Important: This must be a unique interpretation for this specific card spread. M
               else if (spread === "CUSTOM") price = PRICE_CUSTOM;
 
               // Ensure wallet is connected before payment (helps with WebView stability)
-              if (!walletAddress) {
+              let activeAddress = walletAddress;
+              if (!activeAddress) {
                 console.log("Wallet not connected, connecting first...");
-                await connectWallet();
-                if (!walletAddress) {
+                const connectedAddr = await connectWallet();
+                activeAddress = connectedAddr || walletAddress;
+                if (!activeAddress) {
                   throw new Error("Wallet connection required for payment");
                 }
               }
