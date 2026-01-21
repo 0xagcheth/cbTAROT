@@ -158,6 +158,14 @@
         return "0x" + wei.toString(16);
       }
 
+      // ETH to wei (decimal string) for sendToken API
+      function ethToWeiString(ethStr) {
+        const [whole, frac = ""] = String(ethStr).split(".");
+        const fracPadded = (frac + "0".repeat(18)).slice(0, 18);
+        const wei = BigInt(whole || "0") * 10n ** 18n + BigInt(fracPadded || "0");
+        return wei.toString(); // decimal string
+      }
+
       // BigInt to wei hex (safe version)
       function weiToHex(wei) {
         return "0x" + wei.toString(16);
@@ -618,7 +626,39 @@
             ethAmount = String(ethAmount);
             
             console.log("PAY: 🚀 Starting payment for", ethAmount, "ETH", "(type:", typeof ethAmount, ")");
+
+            // ---- Path A: Farcaster MiniApp native action (preferred) ----
+            try {
+              const sdk = window.__FC_SDK__;
+              if (sdk?.actions?.sendToken) {
+                setPaymentStep("sendToken");
+                const amountWei = ethToWeiString(ethAmount);
+                console.log("PAY: Using Farcaster sendToken", { amountWei, to: PAYMENT_TO });
+                const res = await sdk.actions.sendToken({
+                  token: "eip155:8453/native", // Base mainnet native ETH
+                  amount: amountWei,           // decimal string in wei
+                  recipientAddress: PAYMENT_TO
+                });
+
+                if (!res?.success) {
+                  const reason = res?.error?.message || res?.reason || "sendToken failed";
+                  console.warn("PAY: sendToken returned failure", res);
+                  throw new Error(reason);
+                }
+
+                const txHash = res?.send?.transaction || "";
+                setLastTx(txHash);
+                setPaymentStep("complete");
+                console.log("PAY: ✅ sendToken success", { txHash });
+                return txHash;
+              }
+            } catch (miniAppErr) {
+              console.warn("PAY: sendToken path failed, falling back to provider", miniAppErr);
+              // Fall through to provider flow
+            }
             
+            // ---- Path B: Direct provider flow (fallback) ----
+
             // Step 1: Get provider
             const provider = await getProviderOrThrow();
             console.log("PAY: ✓ Provider ready");
