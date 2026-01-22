@@ -144,20 +144,31 @@
       const PRICE_CUSTOM = "0.001";   // Custom reading
       const REQUIRED_CHAIN_ID = "0x2105"; // Base mainnet (8453) - uncomment enforcement if needed
 
-      // Toggle direct provider fallback (keep false to force Farcaster sendToken)
-      const ALLOW_PROVIDER_FALLBACK = false;
+      // Toggle direct provider fallback
+      // true -> если sendToken недоступен/сломался, пробуем обычный провайдер (MetaMask/Farcaster provider)
+      // false -> строго требуем sendToken (Warpcast miniapp), в браузере упадёт
+      const ALLOW_PROVIDER_FALLBACK = true;
       
-      // Price constants as BigInt (wei) to avoid runtime conversions
-      // NOTE: These are available but currently using string prices (PRICE_THREE/PRICE_CUSTOM)
-      // for consistency with ethToWeiHex converter
+      // BigInt helpers (no exponent to avoid BigInt -> number coercions in some runtimes)
+      const WEI_PER_ETH = 1000000000000000000n; // 1e18 in wei
+      // Price constants as BigInt (wei) if needed elsewhere
       const PRICE_THREE_WEI = 500000000000000n;   // 0.0005 ETH in wei
       const PRICE_CUSTOM_WEI = 1000000000000000n; // 0.001 ETH in wei
+      // Precomputed decimal/hex wei strings to avoid runtime BigInt math for known prices
+      const PRICE_WEI_DEC = {
+        [PRICE_THREE]: "500000000000000",
+        [PRICE_CUSTOM]: "1000000000000000",
+      };
+      const PRICE_WEI_HEX = {
+        [PRICE_THREE]: "0x1c6bf52634000",   // 500000000000000 in hex
+        [PRICE_CUSTOM]: "0x38d7ea4c68000",  // 1000000000000000 in hex
+      };
       
       // ETH to wei(hex) converter (no libraries needed)
       function ethToWeiHex(ethStr) {
         const [whole, frac = ""] = String(ethStr).split(".");
         const fracPadded = (frac + "0".repeat(18)).slice(0, 18);
-        const wei = BigInt(whole || "0") * 10n ** 18n + BigInt(fracPadded || "0");
+        const wei = BigInt(whole || "0") * WEI_PER_ETH + BigInt(fracPadded || "0");
         return "0x" + wei.toString(16);
       }
 
@@ -165,7 +176,7 @@
       function ethToWeiString(ethStr) {
         const [whole, frac = ""] = String(ethStr).split(".");
         const fracPadded = (frac + "0".repeat(18)).slice(0, 18);
-        const wei = BigInt(whole || "0") * 10n ** 18n + BigInt(fracPadded || "0");
+        const wei = BigInt(whole || "0") * WEI_PER_ETH + BigInt(fracPadded || "0");
         return wei.toString(); // decimal string
       }
 
@@ -518,11 +529,16 @@
           if (chainId === REQUIRED_CHAIN_ID) return;
 
           console.log("PAY: Switching to required chain:", REQUIRED_CHAIN_ID);
-          // Uncomment to enforce chain switch:
-          // await provider.request({
-          //   method: "wallet_switchEthereumChain",
-          //   params: [{ chainId: REQUIRED_CHAIN_ID }],
-          // });
+          try {
+            await provider.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: REQUIRED_CHAIN_ID }],
+            });
+            console.log("PAY: Chain switched");
+          } catch (e) {
+            console.warn("PAY: Chain switch failed, requesting manual switch", e);
+            throw new Error("Переключите сеть кошелька на Base (chainId 0x2105) и попробуйте снова.");
+          }
         }
 
         async function ensureEnoughBalance(provider, address, neededEth) {
@@ -630,39 +646,37 @@
             
             console.log("PAY: 🚀 Starting payment for", ethAmount, "ETH", "(type:", typeof ethAmount, ")");
 
-            // ---- Path A: Farcaster MiniApp native action (preferred & enforced) ----
-            const sdk = window.__FC_SDK__;
-            if (!sdk?.actions?.sendToken) {
-              throw new Error("Farcaster sendToken not available. Open in Warpcast or update app.");
-            }
+            // ---- Path A: Farcaster MiniApp native action (preferred) ----
+            const sdk = await waitForFarcasterSdk();
+            if (sdk?.actions?.sendToken) {
+              setPaymentStep("sendToken");
+              // Use precomputed wei when possible to avoid BigInt operations inside mobile runtimes
+              const amountWei = PRICE_WEI_DEC[ethAmount] || ethToWeiString(ethAmount);
+              console.log("PAY: Using Farcaster sendToken", { amountWei, to: PAYMENT_TO });
+              const res = await sdk.actions.sendToken({
+                token: "eip155:8453/native", // Base mainnet native ETH
+                amount: amountWei,           // decimal string in wei
+                recipientAddress: PAYMENT_TO
+              });
 
-            setPaymentStep("sendToken");
-            const amountWei = ethToWeiString(ethAmount);
-            console.log("PAY: Using Farcaster sendToken", { amountWei, to: PAYMENT_TO });
-            const res = await sdk.actions.sendToken({
-              token: "eip155:8453/native", // Base mainnet native ETH
-              amount: amountWei,           // decimal string in wei
-              recipientAddress: PAYMENT_TO
-            });
-
-            if (!res?.success) {
-              const reason = res?.error?.message || res?.reason || "sendToken failed";
-              console.warn("PAY: sendToken returned failure", res);
-              if (!ALLOW_PROVIDER_FALLBACK) throw new Error(reason);
-              // else fall through
-            } else {
-              const txHash = res?.send?.transaction || "";
-              setLastTx(txHash);
-              setPaymentStep("complete");
-              console.log("PAY: ✅ sendToken success", { txHash });
-              return txHash;
+              if (!res?.success) {
+                const reason = res?.error?.message || res?.reason || res?.message || "sendToken failed";
+                console.warn("PAY: sendToken returned failure", res);
+                setPayError(`sendToken: ${reason}`);
+                if (!ALLOW_PROVIDER_FALLBACK) throw new Error(reason);
+                // else fall through to provider path
+              } else {
+                const txHash = res?.send?.transaction || "";
+                setLastTx(txHash);
+                setPaymentStep("complete");
+                console.log("PAY: ✅ sendToken success", { txHash });
+                return txHash;
+              }
+            } else if (!ALLOW_PROVIDER_FALLBACK) {
+              throw new Error("Farcaster sendToken недоступен. Откройте в Warpcast MiniApp или включите fallback.");
             }
             
             // ---- Path B: Direct provider flow (fallback) ----
-            if (!ALLOW_PROVIDER_FALLBACK) {
-              throw new Error("Payment failed via sendToken and provider fallback disabled.");
-            }
-
             // Step 1: Get provider
             const provider = await getProviderOrThrow();
             console.log("PAY: ✓ Provider ready");
@@ -685,7 +699,8 @@
 
             // Step 5: Build and send transaction
             setPaymentStep("sendTx");
-            const valueWei = ethToWeiHex(ethAmount);
+            // Use precomputed wei when possible to avoid unexpected BigInt coercions
+            const valueWei = PRICE_WEI_HEX[ethAmount] || ethToWeiHex(ethAmount);
             
             // CRITICAL: Ensure all tx fields are strings (prevent BigInt leaks)
             const tx = {
