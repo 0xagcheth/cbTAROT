@@ -732,16 +732,20 @@
             console.log("PAY: ✓ Transaction sent! Hash:", txHash);
             setLastTx(txHash);
 
-            // Step 6: Wait for confirmation
-            console.log("PAY: ⏳ Waiting for confirmation...");
-            const receipt = await waitReceipt(provider, txHash, 90000);
-            
-            console.log("PAY: ✅ Payment confirmed!", { 
-              blockNumber: String(receipt.blockNumber),
-              status: String(receipt.status),
-              txHash: String(txHash)
-            });
+            // Step 6: Mark as complete immediately (don't block UI on receipt)
             setPaymentStep("complete");
+            // Fire-and-forget receipt check for logging only
+            waitReceipt(provider, txHash, 30000)
+              .then((receipt) => {
+                console.log("PAY: ✅ Payment confirmed (async)!", { 
+                  blockNumber: String(receipt.blockNumber),
+                  status: String(receipt.status),
+                  txHash: String(txHash)
+                });
+              })
+              .catch((err) => {
+                console.warn("PAY: Receipt check async failed:", err?.message || String(err));
+              });
             
             return txHash;
           } catch (e) {
