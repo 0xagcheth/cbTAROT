@@ -436,6 +436,20 @@
           })();
         }, []);
 
+        // Retry detect wallet once SDK ready (covers late SDK init)
+        useEffect(() => {
+          if (!sdkReady) return;
+          (async () => {
+            try {
+              const provider = await getProvider();
+              if (!provider) return;
+              const accounts = await provider.request({ method: "eth_accounts" });
+              const addr = accounts?.[0] || "";
+              if (addr) setWalletAddress(addr);
+            } catch (_) {}
+          })();
+        }, [sdkReady]);
+
         // Wallet helper functions
         function shorten(addr) {
           if (!addr || addr.length < 10) return addr || "";
@@ -443,7 +457,7 @@
         }
 
         // Wait for Farcaster SDK to load (fixes race condition)
-        async function waitForFarcasterSdk(timeoutMs = 8000) {
+        async function waitForFarcasterSdk(timeoutMs = 15000) {
           const start = Date.now();
           while (!window.__FC_SDK__) {
             if (Date.now() - start > timeoutMs) {
@@ -723,7 +737,7 @@
                 method: "eth_sendTransaction",
                 params: [tx],
               }),
-              60000, // 60 seconds for user to confirm
+              20000, // shorter timeout to avoid UI hanging
               "Transaction request timed out. Please try again."
             );
 
@@ -732,21 +746,9 @@
             console.log("PAY: ✓ Transaction sent! Hash:", txHash);
             setLastTx(txHash);
 
-            // Step 6: Mark as complete immediately (don't block UI on receipt)
+            // Step 6: Mark as complete immediately (skip waiting UI)
             setPaymentStep("complete");
-            // Fire-and-forget receipt check for logging only
-            waitReceipt(provider, txHash, 30000)
-              .then((receipt) => {
-                console.log("PAY: ✅ Payment confirmed (async)!", { 
-                  blockNumber: String(receipt.blockNumber),
-                  status: String(receipt.status),
-                  txHash: String(txHash)
-                });
-              })
-              .catch((err) => {
-                console.warn("PAY: Receipt check async failed:", err?.message || String(err));
-              });
-            
+            setIsPaying(false);
             return txHash;
           } catch (e) {
             // Safe error handling - avoid BigInt in error messages
@@ -778,6 +780,7 @@
             
             throw new Error(errorMsg);
           } finally {
+            // keep as safety
             setIsPaying(false);
           }
         }
