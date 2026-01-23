@@ -147,9 +147,10 @@
       // Toggle direct provider fallback
       // true -> если sendToken недоступен/сломался, пробуем обычный провайдер (MetaMask/Farcaster provider)
       // false -> строго требуем sendToken (Warpcast miniapp), в браузере упадёт
-      const ALLOW_PROVIDER_FALLBACK = false;
-      // Enable only Farcaster sendToken flow (убираем провайдерский перевод)
-      const ENABLE_SEND_TOKEN = true;
+      // Для принудительного открытия кошелька (скрин 2) оставляем провайдерский поток
+      const ALLOW_PROVIDER_FALLBACK = true;
+      // Отключаем Farcaster sendToken, чтобы не показывался первый экран перевода
+      const ENABLE_SEND_TOKEN = false;
       
       // BigInt helpers (no exponent to avoid BigInt -> number coercions in some runtimes)
       const WEI_PER_ETH = 1000000000000000000n; // 1e18 in wei
@@ -679,9 +680,6 @@
             }
             
             // ---- Path B: Direct provider flow (fallback) ----
-            if (!ALLOW_PROVIDER_FALLBACK) {
-              throw new Error("Оплата доступна только через Warpcast MiniApp (sendToken). Откройте миниапп и попробуйте снова.");
-            }
             // Step 1: Get provider
             const provider = await getProviderOrThrow();
             console.log("PAY: ✓ Provider ready");
