@@ -148,6 +148,8 @@
       // true -> если sendToken недоступен/сломался, пробуем обычный провайдер (MetaMask/Farcaster provider)
       // false -> строго требуем sendToken (Warpcast miniapp), в браузере упадёт
       const ALLOW_PROVIDER_FALLBACK = true;
+      // Disable Farcaster sendToken flow to avoid double payment prompts
+      const ENABLE_SEND_TOKEN = false;
       
       // BigInt helpers (no exponent to avoid BigInt -> number coercions in some runtimes)
       const WEI_PER_ETH = 1000000000000000000n; // 1e18 in wei
@@ -648,7 +650,7 @@
 
             // ---- Path A: Farcaster MiniApp native action (preferred) ----
             const sdk = await waitForFarcasterSdk();
-            if (sdk?.actions?.sendToken) {
+            if (ENABLE_SEND_TOKEN && sdk?.actions?.sendToken) {
               setPaymentStep("sendToken");
               // Use precomputed wei when possible to avoid BigInt operations inside mobile runtimes
               const amountWei = PRICE_WEI_DEC[ethAmount] || ethToWeiString(ethAmount);
