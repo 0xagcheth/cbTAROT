@@ -332,6 +332,7 @@
         return arr.slice(0,count);
       }
 
+
       function TaroApp() {
         const [gameStage, setGameStage]=useState("idle");
         const [selectedSpread, setSelectedSpread]=useState(null);
@@ -1164,6 +1165,43 @@ Important: This must be a unique interpretation for this specific card spread. M
           setGameStage("choosing");
         };
 
+        // --- SHARE (Compose Cast) ---
+        const APP_URL = "https://0xagcheth.github.io/cbTARO/";
+
+        function oneLine(card) {
+          return (card?.keyword || "").trim();
+        }
+
+        function buildShareText() {
+          const drawn = (cards || []).filter((c) => revealedIds.includes(c.id));
+          const namesLine = drawn.map((c) => c.name).join(" • ");
+          const bullets = drawn.map((c) => `- ${c.name} — ${oneLine(c)}`).join("\n");
+          return [
+            `🃏 cbTARO draw: ${namesLine}`,
+            bullets ? `\n${bullets}` : "",
+            `\nTry your own reading 👇`,
+            APP_URL
+          ].join("\n").trim();
+        }
+
+        async function shareReading() {
+          try {
+            const sdk = window.__FC_SDK__;
+            if (!sdk || !sdkReady) {
+              alert("Share is available inside Farcaster Mini App.");
+              return;
+            }
+            const text = buildShareText();
+            await sdk.actions.composeCast({
+              text,
+              embeds: [APP_URL],
+            });
+          } catch (e) {
+            console.warn("composeCast failed:", e);
+            alert("Couldn't open cast composer. Try again.");
+          }
+        }
+
         const isAllRevealed = Array.isArray(cards) && cards.length > 0 && Array.isArray(revealedIds) && cards.every((c) => c && c.id !== undefined && revealedIds.includes(c.id));
 
         return (
@@ -1206,6 +1244,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                 <div className="taro-table-wrap">
                   <div className={`taro-table ${gameStage === "animating" ? "table-animating" : ""}`}>
                     <div className="taro-table-content">
+
                       {gameStage === "idle" && (
                         <div className="taro-deck" onClick={handleChooseSpreadClick}>
                           <div className="taro-deck-inner" />
@@ -1713,6 +1752,21 @@ Important: This must be a unique interpretation for this specific card spread. M
               )}
             </div>
 
+            {/* Share button - bottom right (after spread complete) */}
+            {isAllRevealed && !activeCard && !showGallery && !(aiInterpretation && showAiPanel) && (
+              <div className="share-fab">
+                <button
+                  className="share-btn"
+                  onClick={() => { playButtonSound(); shareReading(); }}
+                  disabled={!sdkReady}
+                  aria-label="Share to Farcaster"
+                  title={!sdkReady ? "Loading…" : "Share"}
+                >
+                  Share ↗
+                </button>
+              </div>
+            )}
+
             {/* Payment overlay disabled per request */}
 
             {/* Payment error display */}
@@ -1983,29 +2037,29 @@ to{transform:rotate(360deg);}
 .card-anim{width:100%;height:100%;cursor:pointer;position:relative;transform-style:preserve-3d;will-change:transform;opacity:1;display:block;min-height:1px;transform:translateZ(0);backface-visibility:hidden;overflow:visible;}
 .card-slot.card-single .card-anim,.card-slot.card-left .card-anim,.card-slot.card-center .card-anim,.card-slot.card-right .card-anim{opacity:0;}
 .taro-card{width:var(--card-w);height:var(--card-h);cursor:pointer;position:relative;transition:transform 0.3s ease;opacity:0;flex-shrink:0;transform-style:preserve-3d;}
-.card-slot.card-single .card-anim{animation:dealerThrowFromTopCenter 0.6s cubic-bezier(0.25,0.46,0.45,0.94) 0.2s forwards;}
-@keyframes dealerThrowFromTopCenter{0%{opacity:0;transform:translateZ(0) rotate(-180deg) scale(0.8);}
-60%{opacity:1;transform:translateZ(0) rotate(5deg) scale(1);}
-80%{transform:translateZ(0) rotate(-2deg) scale(1);}
-100%{opacity:1;transform:translateZ(0) translate3d(0,0,0) rotate(0deg) scale(1);}
+.card-slot.card-single .card-anim{animation:dealerThrowFromTopCenter 0.7s cubic-bezier(0.25,0.46,0.45,0.94) 0.2s forwards;}
+@keyframes dealerThrowFromTopCenter{0%{opacity:0;transform:translate3d(0,-140vh,0) rotate(-180deg) scale(0.82);}
+60%{opacity:1;transform:translate3d(0,-20vh,0) rotate(5deg) scale(1.02);}
+80%{transform:translate3d(0,-4vh,0) rotate(-2deg) scale(1.01);}
+100%{opacity:1;transform:translate3d(0,0,0) rotate(0deg) scale(1);}
 }
-.card-slot.card-left .card-anim{animation:dealerThrowFromTopLeft 0.6s cubic-bezier(0.25,0.46,0.45,0.94) 0.2s forwards;}
-.card-slot.card-center .card-anim{animation:dealerThrowFromTopCenterCard 0.6s cubic-bezier(0.25,0.46,0.45,0.94) 0.4s forwards;}
-.card-slot.card-right .card-anim{animation:dealerThrowFromTopRight 0.6s cubic-bezier(0.25,0.46,0.45,0.94) 0.6s forwards;}
-@keyframes dealerThrowFromTopLeft{0%{opacity:0;transform:translateZ(0) rotate(-180deg) scale(0.8);}
-60%{opacity:1;transform:translateZ(0) rotate(-12deg) scale(1);}
-80%{transform:translateZ(0) rotate(-15deg) scale(1);}
-100%{opacity:1;transform:translateZ(0) translate3d(0,0,0) rotate(-15deg) scale(1);}
+.card-slot.card-left .card-anim{animation:dealerThrowFromTopLeft 0.7s cubic-bezier(0.25,0.46,0.45,0.94) 0.2s forwards;}
+.card-slot.card-center .card-anim{animation:dealerThrowFromTopCenterCard 0.7s cubic-bezier(0.25,0.46,0.45,0.94) 0.4s forwards;}
+.card-slot.card-right .card-anim{animation:dealerThrowFromTopRight 0.7s cubic-bezier(0.25,0.46,0.45,0.94) 0.6s forwards;}
+@keyframes dealerThrowFromTopLeft{0%{opacity:0;transform:translate3d(-22vw,-150vh,0) rotate(-200deg) scale(0.82);}
+60%{opacity:1;transform:translate3d(-8vw,-24vh,0) rotate(-24deg) scale(1.02);}
+80%{transform:translate3d(-2vw,-6vh,0) rotate(-18deg) scale(1.01);}
+100%{opacity:1;transform:translate3d(0,0,0) rotate(-15deg) scale(1);}
 }
-@keyframes dealerThrowFromTopCenterCard{0%{opacity:0;transform:translateZ(0) rotate(-180deg) scale(0.8);}
-60%{opacity:1;transform:translateZ(0) rotate(5deg) scale(1);}
-80%{transform:translateZ(0) rotate(-2deg) scale(1);}
-100%{opacity:1;transform:translateZ(0) translate3d(0,0,0) rotate(0deg) scale(1);}
+@keyframes dealerThrowFromTopCenterCard{0%{opacity:0;transform:translate3d(0,-145vh,0) rotate(-185deg) scale(0.82);}
+60%{opacity:1;transform:translate3d(0,-22vh,0) rotate(6deg) scale(1.02);}
+80%{transform:translate3d(0,-5vh,0) rotate(-2deg) scale(1.01);}
+100%{opacity:1;transform:translate3d(0,0,0) rotate(0deg) scale(1);}
 }
-@keyframes dealerThrowFromTopRight{0%{opacity:0;transform:translateZ(0) rotate(-180deg) scale(0.8);}
-60%{opacity:1;transform:translateZ(0) rotate(12deg) scale(1);}
-80%{transform:translateZ(0) rotate(15deg) scale(1);}
-100%{opacity:1;transform:translateZ(0) translate3d(0,0,0) rotate(15deg) scale(1);}
+@keyframes dealerThrowFromTopRight{0%{opacity:0;transform:translate3d(22vw,-150vh,0) rotate(-200deg) scale(0.82);}
+60%{opacity:1;transform:translate3d(8vw,-24vh,0) rotate(24deg) scale(1.02);}
+80%{transform:translate3d(2vw,-6vh,0) rotate(18deg) scale(1.01);}
+100%{opacity:1;transform:translate3d(0,0,0) rotate(15deg) scale(1);}
 }
 .card-anim:hover{transform:translateZ(0) translateY(-10px) scale(1);}
 .card-slot.card-left .card-anim:hover{transform:translateZ(0) translateY(-10px) rotate(-15deg) scale(1);}
@@ -2746,6 +2800,45 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   -webkit-user-select: text;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+/* =========================
+   SHARE BUTTON (Bottom Right)
+   ========================= */
+.share-fab{
+  position: fixed;
+  right: calc(12px + env(safe-area-inset-right));
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 9999;
+}
+.share-btn{
+  appearance:none;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.55);
+  color: rgba(255,255,255,0.92);
+  padding: 10px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+.share-btn:hover{
+  background: rgba(0,0,0,0.65);
+  border-color: rgba(255,255,255,0.22);
+  transform: translateY(-1px);
+}
+.share-btn:active{
+  transform: translateY(0px);
+}
+.share-btn:disabled{
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .taro-error-overlay {
