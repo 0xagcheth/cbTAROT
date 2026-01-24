@@ -1248,7 +1248,10 @@ Important: This must be a unique interpretation for this specific card spread. M
 
         return (
           <div className="taro-root">
-            <div className="taro-background" />
+            <div
+              className="taro-background"
+              style={{ backgroundImage: `var(--bg-url, url("${ASSET("Assets/imagine/b.png")}")` }}
+            />
 
             <div className="control-buttons-left">
               <button
