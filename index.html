@@ -140,8 +140,8 @@
       // Payment constants
       const PAYMENT_TO = "0xD4bF185c846F6CAbDaa34122d0ddA43765E754A6";
       const PRICE_ONE = "0.0003";     // Single card (FREE)
-      const PRICE_THREE = "0.0005";   // 3 cards
-      const PRICE_CUSTOM = "0.001";   // Custom reading
+      const PRICE_THREE = "0.0001";   // 3 cards
+      const PRICE_CUSTOM = "0.0003";  // Custom reading
       const REQUIRED_CHAIN_ID = "0x2105"; // Base mainnet (8453) - uncomment enforcement if needed
 
       // Toggle direct provider fallback
@@ -155,16 +155,16 @@
       // BigInt helpers (no exponent to avoid BigInt -> number coercions in some runtimes)
       const WEI_PER_ETH = 1000000000000000000n; // 1e18 in wei
       // Price constants as BigInt (wei) if needed elsewhere
-      const PRICE_THREE_WEI = 500000000000000n;   // 0.0005 ETH in wei
-      const PRICE_CUSTOM_WEI = 1000000000000000n; // 0.001 ETH in wei
+      const PRICE_THREE_WEI = 100000000000000n;   // 0.0001 ETH in wei
+      const PRICE_CUSTOM_WEI = 300000000000000n;  // 0.0003 ETH in wei
       // Precomputed decimal/hex wei strings to avoid runtime BigInt math for known prices
       const PRICE_WEI_DEC = {
-        [PRICE_THREE]: "500000000000000",
-        [PRICE_CUSTOM]: "1000000000000000",
+        [PRICE_THREE]: "100000000000000",
+        [PRICE_CUSTOM]: "300000000000000",
       };
       const PRICE_WEI_HEX = {
-        [PRICE_THREE]: "0x1c6bf52634000",   // 500000000000000 in hex
-        [PRICE_CUSTOM]: "0x38d7ea4c68000",  // 1000000000000000 in hex
+        [PRICE_THREE]: "0x5af3107a4000",    // 100000000000000 in hex
+        [PRICE_CUSTOM]: "0x110d9316ec000",  // 300000000000000 in hex
       };
       
       // ETH to wei(hex) converter (no libraries needed)
@@ -1174,14 +1174,21 @@ Important: This must be a unique interpretation for this specific card spread. M
 
         function buildShareText() {
           const drawn = (cards || []).filter((c) => revealedIds.includes(c.id));
-          const namesLine = drawn.map((c) => c.name).join(" • ");
-          const bullets = drawn.map((c) => `- ${c.name} — ${oneLine(c)}`).join("\n");
-          return [
-            `🃏 cbTARO draw: ${namesLine}`,
-            bullets ? `\n${bullets}` : "",
-            `\nTry your own reading 👇`,
-            APP_URL
-          ].join("\n").trim();
+          const count = drawn.length;
+
+          if (count === 1) {
+            const c = drawn[0] || {};
+            const kw = oneLine(c);
+            return `Pulled a taro card — ${c.name || ""}. ${kw || ""}. Curious what yours says?\n${APP_URL}`.trim();
+          }
+
+          if (count === 3) {
+            const lines = drawn.map((c) => `${c.name} — ${oneLine(c)}`).join("\n");
+            return `Did a taro spread today:\n${lines}\nCurious what patterns show up for you?\n${APP_URL}`.trim();
+          }
+
+          // fallback / custom spreads
+          return `Did a custom taro reading.\nSome cards hit unexpectedly.\nDraw your own ↓\n${APP_URL}`.trim();
         }
 
         async function shareReading() {
@@ -2803,42 +2810,61 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 }
 
 /* =========================
-   SHARE BUTTON (Bottom Right)
+   SHARE BUTTON – cbTARO style
    ========================= */
 .share-fab{
   position: fixed;
-  right: calc(12px + env(safe-area-inset-right));
-  bottom: calc(12px + env(safe-area-inset-bottom));
+  right: calc(14px + env(safe-area-inset-right));
+  bottom: calc(14px + env(safe-area-inset-bottom));
   z-index: 9999;
 }
 .share-btn{
-  appearance:none;
-  border: 1px solid rgba(255,255,255,0.16);
-  background: rgba(0,0,0,0.55);
-  color: rgba(255,255,255,0.92);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 10px 14px;
   border-radius: 999px;
-  cursor: pointer;
+  background:
+    radial-gradient(
+      120% 120% at 30% 20%,
+      rgba(120,160,255,0.18),
+      rgba(10,12,24,0.85)
+    );
+  border: 1px solid rgba(212,175,55,0.35);
+  color: rgba(232,215,160,0.95);
   font-size: 13px;
-  line-height: 1;
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   font-weight: 600;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    0 0 0 rgba(212,175,55,0),
+    0 6px 18px rgba(0,0,0,0.45);
+  transition: all 0.25s ease;
+}
+.share-btn::before{
+  content: "✦";
+  font-size: 14px;
+  opacity: 0.9;
 }
 .share-btn:hover{
-  background: rgba(0,0,0,0.65);
-  border-color: rgba(255,255,255,0.22);
+  border-color: rgba(212,175,55,0.7);
+  box-shadow:
+    0 0 12px rgba(212,175,55,0.25),
+    0 8px 22px rgba(0,0,0,0.55);
   transform: translateY(-1px);
 }
 .share-btn:active{
-  transform: translateY(0px);
+  transform: translateY(0);
+  box-shadow:
+    0 0 6px rgba(212,175,55,0.25),
+    0 4px 12px rgba(0,0,0,0.5);
 }
 .share-btn:disabled{
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
-  transform: none;
+  box-shadow: none;
 }
 
 .taro-error-overlay {
