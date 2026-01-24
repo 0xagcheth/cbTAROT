@@ -1410,21 +1410,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                             </div>
                           </div>
 
-                          {/* Payment status indicator */}
-                          {isPaying && (
-                            <div style={{
-                              textAlign: 'center',
-                              color: '#ffd700',
-                              fontSize: '0.85rem',
-                              marginTop: '0.5rem',
-                              padding: '0.5rem',
-                              background: 'rgba(255,215,0,0.1)',
-                              borderRadius: '8px'
-                            }}>
-                              💳 Processing payment...
-                            </div>
-                          )}
-                          
                           {payError && (
                             <div style={{
                               textAlign: 'center',
@@ -2765,11 +2750,13 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 
 .taro-error-overlay {
   position: fixed;
-  inset: 0;
+  top: calc(110px + env(safe-area-inset-top, 0));
+  left: 0;
+  right: 0;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: calc(12px + env(safe-area-inset-top, 0)) 16px 16px 16px;
+  padding: 0 16px 16px;
   z-index: 10010;
   pointer-events: none;
 }
