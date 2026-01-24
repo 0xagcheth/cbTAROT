@@ -366,6 +366,7 @@
         const [payError, setPayError]=useState("");
         const [sdkReady, setSdkReady]=useState(false);
         const [paymentStep, setPaymentStep]=useState(""); // for debugging: "accounts", "balance", "sendTx", "receipt"
+        const payErrorTimerRef=useRef(null);
 
         useEffect(() => {
           return () => {
@@ -373,6 +374,7 @@
             if(abortControllerRef.current) abortControllerRef.current.abort();
             audioCacheRef.current.forEach((a) => { try { a.pause(); } catch {} });
             audioCacheRef.current.clear();
+            if(payErrorTimerRef.current) clearTimeout(payErrorTimerRef.current);
           };
         }, []);
 
@@ -450,6 +452,23 @@
             } catch (_) {}
           })();
         }, [sdkReady]);
+
+        // Auto-hide payment error after delay
+        useEffect(() => {
+          if (payError) {
+            if (payErrorTimerRef.current) clearTimeout(payErrorTimerRef.current);
+            payErrorTimerRef.current = setTimeout(() => {
+              setPayError("");
+              payErrorTimerRef.current = null;
+            }, 3600);
+          }
+          return () => {
+            if (payErrorTimerRef.current) {
+              clearTimeout(payErrorTimerRef.current);
+              payErrorTimerRef.current = null;
+            }
+          };
+        }, [payError]);
 
         // Subscribe to account changes to keep wallet auto-synced
         useEffect(() => {
@@ -1709,58 +1728,7 @@ Important: This must be a unique interpretation for this specific card spread. M
               )}
             </div>
 
-            {/* Payment overlay - full screen indicator */}
-            {isPaying && (
-              <div style={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "rgba(0,0,0,0.8)",
-                backdropFilter: "blur(4px)",
-                zIndex: 10000,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#fff",
-                padding: "2rem"
-              }}>
-                <div style={{
-                  fontSize: "48px",
-                  marginBottom: "1rem",
-                  animation: "pulse 1.5s ease-in-out infinite"
-                }}>
-                  {paymentStep === "receipt" ? "⏳" : 
-                   paymentStep === "sendTx" ? "💳" :
-                   paymentStep === "balance" ? "💳" :
-                   paymentStep === "accounts" ? "🔐" : "💳"}
-                </div>
-                <div style={{ fontSize: "1.2rem", fontWeight: "bold", marginBottom: "0.5rem" }}>
-                  {paymentStep === "receipt" ? "Confirming Transaction" :
-                   paymentStep === "sendTx" ? "Processing Payment" :
-                   paymentStep === "balance" ? "Processing Payment" :
-                   paymentStep === "accounts" ? "Connecting Wallet" : "Processing Payment"}
-                </div>
-                <div style={{ fontSize: "0.9rem", opacity: 0.8, textAlign: "center", maxWidth: "400px" }}>
-                  {paymentStep === "receipt" ? "Waiting for blockchain confirmation..." :
-                   paymentStep === "sendTx" ? "Please confirm in your wallet..." :
-                   paymentStep === "balance" ? "Processing, please confirm in wallet..." :
-                   paymentStep === "accounts" ? "Please connect your wallet..." : "Please wait..."}
-                </div>
-                {paymentStep === "receipt" && (
-                  <div style={{ 
-                    fontSize: "0.75rem", 
-                    opacity: 0.6, 
-                    marginTop: "1rem",
-                    textAlign: "center"
-                  }}>
-                    This may take up to 90 seconds
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Payment overlay disabled per request */}
 
             {/* Payment error display */}
             {payError && !isPaying && (
@@ -2799,9 +2767,9 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 16px;
+  padding: calc(12px + env(safe-area-inset-top, 0)) 16px 16px 16px;
   z-index: 10010;
   pointer-events: none;
 }
