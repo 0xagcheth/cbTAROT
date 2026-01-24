@@ -351,6 +351,7 @@
         const animTimerRef=useRef(null);
         const abortControllerRef=useRef(null);
         const audioCacheRef=useRef(new Map());
+        const providerRef=useRef(null);
 
         // Wallet states
         const [walletAddress, setWalletAddress]=useState("");
@@ -448,6 +449,46 @@
               if (addr) setWalletAddress(addr);
             } catch (_) {}
           })();
+        }, [sdkReady]);
+
+        // Subscribe to account changes to keep wallet auto-synced
+        useEffect(() => {
+          let mounted = true;
+          let provider = null;
+
+          const handleAccounts = (accounts = []) => {
+            if (!mounted) return;
+            const addr = accounts?.[0] || "";
+            setWalletAddress(addr);
+          };
+
+          const syncAccounts = async () => {
+            if (!provider?.request) return;
+            try {
+              const accounts = await provider.request({ method: "eth_accounts" });
+              handleAccounts(accounts);
+            } catch (_) {}
+          };
+
+          (async () => {
+            provider = await getProvider();
+            if (!provider || typeof provider.on !== "function") return;
+            providerRef.current = provider;
+            provider.on("accountsChanged", handleAccounts);
+            provider.on("disconnect", handleAccounts);
+            provider.on("connect", syncAccounts);
+            await syncAccounts();
+          })();
+
+          return () => {
+            mounted = false;
+            const p = provider || providerRef.current;
+            if (p?.removeListener) {
+              p.removeListener("accountsChanged", handleAccounts);
+              p.removeListener("disconnect", handleAccounts);
+              p.removeListener("connect", syncAccounts);
+            }
+          };
         }, [sdkReady]);
 
         // Wallet helper functions
@@ -581,7 +622,7 @@
           });
 
           if (balanceWei < neededWei) {
-            throw new Error(`Insufficient balance. Need ${neededEth} ETH + gas. You have ${balanceEth} ETH.`);
+            throw new Error("Insufficient balance.");
           }
         }
 
@@ -737,7 +778,7 @@
                 method: "eth_sendTransaction",
                 params: [tx],
               }),
-              20000, // shorter timeout to avoid UI hanging
+              60000, // allow enough time for wallet confirmation
               "Transaction request timed out. Please try again."
             );
 
@@ -1693,19 +1734,19 @@ Important: This must be a unique interpretation for this specific card spread. M
                 }}>
                   {paymentStep === "receipt" ? "⏳" : 
                    paymentStep === "sendTx" ? "💳" :
-                   paymentStep === "balance" ? "💰" :
+                   paymentStep === "balance" ? "💳" :
                    paymentStep === "accounts" ? "🔐" : "💳"}
                 </div>
                 <div style={{ fontSize: "1.2rem", fontWeight: "bold", marginBottom: "0.5rem" }}>
                   {paymentStep === "receipt" ? "Confirming Transaction" :
                    paymentStep === "sendTx" ? "Processing Payment" :
-                   paymentStep === "balance" ? "Checking Balance" :
+                   paymentStep === "balance" ? "Processing Payment" :
                    paymentStep === "accounts" ? "Connecting Wallet" : "Processing Payment"}
                 </div>
                 <div style={{ fontSize: "0.9rem", opacity: 0.8, textAlign: "center", maxWidth: "400px" }}>
                   {paymentStep === "receipt" ? "Waiting for blockchain confirmation..." :
                    paymentStep === "sendTx" ? "Please confirm in your wallet..." :
-                   paymentStep === "balance" ? "Verifying your ETH balance..." :
+                   paymentStep === "balance" ? "Processing, please confirm in wallet..." :
                    paymentStep === "accounts" ? "Please connect your wallet..." : "Please wait..."}
                 </div>
                 {paymentStep === "receipt" && (
@@ -1723,22 +1764,10 @@ Important: This must be a unique interpretation for this specific card spread. M
 
             {/* Payment error display */}
             {payError && !isPaying && (
-              <div style={{ 
-                position:"fixed", 
-                left:"50%", 
-                top:"20px",
-                transform:"translateX(-50%)", 
-                zIndex:9999, 
-                fontSize:"13px", 
-                color:"#fff", 
-                background:"rgba(255,50,50,0.9)", 
-                padding:"12px 16px", 
-                borderRadius:"12px",
-                maxWidth:"90vw",
-                textAlign:"center",
-                boxShadow:"0 4px 12px rgba(0,0,0,0.3)"
-              }}>
-                ⚠️ {payError}
+              <div className="taro-error-overlay" role="alert" aria-live="polite">
+                <div className="taro-error-card">
+                  <div className="taro-error-text">{payError}</div>
+                </div>
               </div>
             )}
 
@@ -2764,6 +2793,49 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   -webkit-user-select: text;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.taro-error-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 10010;
+  pointer-events: none;
+}
+
+.taro-error-card {
+  position: relative;
+  pointer-events: auto;
+  min-width: 220px;
+  max-width: 90vw;
+  padding: 16px 22px;
+  background: radial-gradient(circle at 30% 20%, rgba(20,30,60,0.55), rgba(6,10,20,0.95));
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.45), 0 0 32px rgba(245,197,66,0.2);
+  overflow: hidden;
+}
+
+.taro-error-card::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 16px;
+  border: 1px solid rgba(245,197,66,0.45);
+  box-shadow: inset 0 0 24px rgba(245,197,66,0.15);
+}
+
+.taro-error-text {
+  position: relative;
+  color: rgba(245,230,200,0.95);
+  text-align: center;
+  font-family: 'Georgia','Times New Roman',serif;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-shadow: 0 0 12px rgba(245,197,66,0.35);
 }
 
 /* Mobile optimizations */
