@@ -394,14 +394,17 @@
                 img.onload=img.onerror=() => {
                   preloadedImagesRef.current.add(url);
                 };
+                img.decoding="async";
+                img.fetchPriority="high";
                 img.src=url;
-              }, idx * 20); // stagger to avoid blocking the main thread
+              }, idx * 5); // tighter stagger for faster warmup
             });
           };
 
+          // Start immediately; idle-callback fallback kept minimal to not delay preload
           let idleId;
           if (typeof requestIdleCallback === "function") {
-            idleId=requestIdleCallback(preload, { timeout: 800 });
+            idleId=requestIdleCallback(preload, { timeout: 200 });
           } else {
             preload();
           }
@@ -1250,7 +1253,7 @@ Important: This must be a unique interpretation for this specific card spread. M
           <div className="taro-root">
             <div
               className="taro-background"
-              style={{ backgroundImage: `var(--bg-url, url("${ASSET("Assets/imagine/b.png")}")` }}
+              style={{ backgroundImage: `var(--bg-url, url("${ASSET("Assets/imagine/b.png")}") )` }}
             />
 
             <div className="control-buttons-left">
