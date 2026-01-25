@@ -1879,36 +1879,22 @@ Important: This must be a unique interpretation for this specific card spread. M
     </script>
 
     <style>
-    *{box-sizing:border-box;}
-html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0);padding-bottom:var(--safe-area-inset-bottom,0);padding-left:var(--safe-area-inset-left,0);padding-right:var(--safe-area-inset-right,0);overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overscroll-behavior:none;-webkit-overflow-scrolling:auto;}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0);padding-bottom:var(--safe-area-inset-bottom,0);padding-left:var(--safe-area-inset-left,0);padding-right:var(--safe-area-inset-right,0);overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overscroll-behavior:none;-webkit-overflow-scrolling:auto;background:#040b1e;}
 #root{height:100%;width:100%;position:relative;}:root{--safe-area-inset-top:env(safe-area-inset-top,0);--safe-area-inset-bottom:env(safe-area-inset-bottom,0);--safe-area-inset-left:env(safe-area-inset-left,0);--safe-area-inset-right:env(safe-area-inset-right,0);--vh:1vh;--pad:clamp(12px,3vw,32px);--space:var(--pad);--tableW:min(100vw,900px);--tableAR:1 / 0.8;--tableH:calc(var(--tableW) * 0.8);--card-w:clamp(92px,22vw,140px);--card-ratio:1.55;--card-h:calc(var(--card-w) * var(--card-ratio));--cardW:var(--card-w);--cardH:var(--card-h);--deckW:clamp(100px,24vw,140px);--deckH:calc(var(--deckW) * 1.46);--h1:clamp(20px,5vw,36px);--p:clamp(12px,3vw,16px);}
 @media (orientation:landscape) and (max-height:500px){:root{--tableAR:1 / 0.5;--tableH:calc(var(--tableW) * 0.5);--card-w:clamp(92px,26vw,132px);--cardW:var(--card-w);--deckW:clamp(87px,21vw,127px);}
 }
 .taro-root{position:relative;min-height:100dvh;min-height:calc(var(--vh,1vh) * 100);width:100%;overflow-x:hidden;font-family:'Georgia','Times New Roman',serif;}
-.taro-background{position:fixed;top:0;left:0;width:100vw;height:100dvh;height:calc(var(--vh,1vh) * 100);background-image:var(--bg-url,url('./Assets/imagine/b.png'));background-repeat:no-repeat;background-attachment:scroll;z-index:0;background-size:cover;background-position:center center;}
+.taro-background{position:fixed;top:0;left:0;width:100vw;height:100dvh;height:100svh;height:calc(var(--vh,1vh) * 100);background-image:var(--bg-url,url('./Assets/imagine/b.png'));background-repeat:no-repeat;background-attachment:scroll;z-index:0;background-size:cover;background-position:center center;}
 @media (max-width:768px){.taro-background{background-attachment:scroll;background-position:center 40%;}
 }
 @media (max-width:768px) and (max-height:700px){.taro-background{background-position:center 35%;}
-}
-@media (max-width:768px){
-  .taro-table-content .custom-reading-modal{
-    position:fixed !important;
-    top:clamp(8vh,12vh,18vh) !important;
-    transform:translate(-50%,0) !important;
-    bottom:clamp(12px,7vh,120px) !important;
-    height:auto !important;
-    max-height:calc(100dvh - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0) - 48px) !important;
-    overflow:auto !important;
-    padding:clamp(1.25rem,4vw,1.75rem) !important;
-  }
-  .custom-modal-content{align-items:stretch !important;}
-  .custom-modal-input{min-height:140px !important;}
 }
 .taro-background::before{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);animation:backgroundPulse 8s ease-in-out infinite;}
 @keyframes backgroundPulse{0%,100%{opacity:0.5;}
 50%{opacity:0.8;}
 }
-.taro-container{position:relative;z-index:1;min-height:100dvh;min-height:calc(var(--vh,1vh) * 100);display:flex;flex-direction:column;padding:calc(var(--pad) + 60px + var(--safe-area-inset-top,0)) var(--pad) var(--pad) var(--pad);width:100%;box-sizing:border-box;}
+.taro-container{position:relative;z-index:1;min-height:100dvh;min-height:100svh;min-height:calc(var(--vh,1vh) * 100);display:flex;flex-direction:column;padding:calc(var(--pad) + 60px + var(--safe-area-inset-top,0)) var(--pad) var(--pad) var(--pad);width:100%;box-sizing:border-box;}
 .taro-header{text-align:center;margin-bottom:0.25rem;color:#fff;}
 .taro-header h1{font-size:calc(var(--h1) * 1.2);margin:0;position:fixed;top:calc(10px + env(safe-area-inset-top,0));left:0;right:0;width:100%;display:block;text-align:center;z-index:1001;color:rgba(255,255,255,0.9);text-shadow:0 0 5px rgba(0,123,255,0.8),0 0 10px rgba(0,123,255,0.6),0 0 15px rgba(0,123,255,0.4),0 0 20px rgba(255,255,255,0.2);animation:liquidText 4s ease-in-out infinite;}
 .taro-header h1::before{content:'cbTaro';position:absolute;top:0;left:0;width:100%;height:100%;color:rgba(255,255,255,0.1);text-shadow:0 0 10px rgba(0,123,255,0.5),0 0 20px rgba(0,123,255,0.3),0 0 30px rgba(255,255,255,0.2);filter:blur(1px);animation:liquidFlow 6s ease-in-out infinite;z-index:-1;}
