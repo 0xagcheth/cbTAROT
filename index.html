@@ -1880,7 +1880,7 @@ Important: This must be a unique interpretation for this specific card spread. M
 
     <style>
 *{box-sizing:border-box;}
-html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0);padding-bottom:var(--safe-area-inset-bottom,0);padding-left:var(--safe-area-inset-left,0);padding-right:var(--safe-area-inset-right,0);overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overscroll-behavior:none;-webkit-overflow-scrolling:auto;background:#040b1e;}
+html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0);padding-bottom:var(--safe-area-inset-bottom,0);padding-left:var(--safe-area-inset-left,0);padding-right:var(--safe-area-inset-right,0);overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overscroll-behavior:none;-webkit-overflow-scrolling:auto;background:#040b1e;background-image:var(--bg-url,url('./Assets/imagine/b.png'));background-size:cover;background-position:center center;background-repeat:no-repeat;background-attachment:fixed;}
 #root{height:100%;width:100%;position:relative;}:root{--safe-area-inset-top:env(safe-area-inset-top,0);--safe-area-inset-bottom:env(safe-area-inset-bottom,0);--safe-area-inset-left:env(safe-area-inset-left,0);--safe-area-inset-right:env(safe-area-inset-right,0);--vh:1vh;--pad:clamp(12px,3vw,32px);--space:var(--pad);--tableW:min(100vw,900px);--tableAR:1 / 0.8;--tableH:calc(var(--tableW) * 0.8);--card-w:clamp(92px,22vw,140px);--card-ratio:1.55;--card-h:calc(var(--card-w) * var(--card-ratio));--cardW:var(--card-w);--cardH:var(--card-h);--deckW:clamp(100px,24vw,140px);--deckH:calc(var(--deckW) * 1.46);--h1:clamp(20px,5vw,36px);--p:clamp(12px,3vw,16px);}
 @media (orientation:landscape) and (max-height:500px){:root{--tableAR:1 / 0.5;--tableH:calc(var(--tableW) * 0.5);--card-w:clamp(92px,26vw,132px);--cardW:var(--card-w);--deckW:clamp(87px,21vw,127px);}
 }
@@ -1889,6 +1889,20 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 @media (max-width:768px){.taro-background{background-attachment:scroll;background-position:center 40%;}
 }
 @media (max-width:768px) and (max-height:700px){.taro-background{background-position:center 35%;}
+}
+@media (max-width:768px){
+  .taro-table-content .custom-reading-modal{
+    position:fixed !important;
+    left:50% !important;
+    top:auto !important;
+    transform:translate(-50%,0) !important;
+    bottom:calc(env(safe-area-inset-bottom,0) + 12px) !important;
+    width:clamp(280px,min(480px,calc(var(--tableW) * 0.85)),92vw) !important;
+    max-height:calc(100dvh - env(safe-area-inset-top,0) - env(safe-area-inset-bottom,0) - 32px) !important;
+    overflow:auto !important;
+  }
+  .custom-modal-content{align-items:stretch !important;}
+  .custom-modal-input{min-height:140px !important;}
 }
 .taro-background::before{content:'';position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);animation:backgroundPulse 8s ease-in-out infinite;}
 @keyframes backgroundPulse{0%,100%{opacity:0.5;}
