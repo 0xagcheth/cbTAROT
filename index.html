@@ -1745,52 +1745,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                         </div>
                       )}
 
-                      {isAllRevealed && (selectedSpread === "THREE" || selectedSpread === "CUSTOM") && (
-                        <div className="get-reading-container get-reading-on-table">
-                          {!aiInterpretation && !isGeneratingAI && (
-                            <button
-                              className="custom-reading-overlay-button custom-reading-get-button"
-                              onClick={async () => {
-                                if (isPaying) return;
-                                playButtonSound();
-                                const questionRaw=(userQuestion || '').trim();
-                                const hasQuestion=questionRaw && questionRaw.length>=3;
-                                const finalQuestion=hasQuestion ? questionRaw : (selectedSpread === "THREE" ? "Three-card reading" : "");
-                                if (selectedSpread === "CUSTOM" && !finalQuestion) {
-                                  alert('Please enter your question first (at least 3 characters).');
-                                  setGameStage("custom");
-                                  return;
-                                }
-                                try {
-                                  await pay(PRICE_READING);
-                                  await generateCustomInterpretation(revealedIds, finalQuestion);
-                                } catch (err) {
-                                  console.error("Get Reading payment or generation failed:", err);
-                                }
-                              }}
-                              disabled={isGeneratingAI || isPaying || (selectedSpread === "CUSTOM" && (!userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3))}
-                              aria-label="Get Reading"
-                            >
-                              <span className="custom-reading-get-text">Get Reading</span>
-                            </button>
-                          )}
-                          {isGeneratingAI && (
-                            <div className="taro-generating" style={{ color: "#ffd700" }}>
-                              ✨ Generating reading...
-                            </div>
-                          )}
-                          {aiInterpretation && (
-                            <button
-                              className="custom-reading-overlay-button custom-reading-get-button"
-                              onClick={() => { playButtonSound(); setShowAiPanel(true); }}
-                              aria-label="Open reading"
-                            >
-                              <span className="custom-reading-get-text">Get Reading</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-
                       {gameStage === "choosing" && (
                         <div
                           className="taro-modal choosing-modal"
@@ -1933,6 +1887,52 @@ Important: This must be a unique interpretation for this specific card spread. M
                     </div>
                   </div>
                 </div>
+
+            {isAllRevealed && (selectedSpread === "THREE" || selectedSpread === "CUSTOM") && (
+              <div className="get-reading-container get-reading-on-table">
+                {!aiInterpretation && !isGeneratingAI && (
+                  <button
+                    className="custom-reading-overlay-button custom-reading-get-button"
+                    onClick={async () => {
+                      if (isPaying) return;
+                      playButtonSound();
+                      const questionRaw=(userQuestion || '').trim();
+                      const hasQuestion=questionRaw && questionRaw.length>=3;
+                      const finalQuestion=hasQuestion ? questionRaw : (selectedSpread === "THREE" ? "Three-card reading" : "");
+                      if (selectedSpread === "CUSTOM" && !finalQuestion) {
+                        alert('Please enter your question first (at least 3 characters).');
+                        setGameStage("custom");
+                        return;
+                      }
+                      try {
+                        await pay(PRICE_READING);
+                        await generateCustomInterpretation(revealedIds, finalQuestion);
+                      } catch (err) {
+                        console.error("Get Reading payment or generation failed:", err);
+                      }
+                    }}
+                    disabled={isGeneratingAI || isPaying || (selectedSpread === "CUSTOM" && (!userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3))}
+                    aria-label="Get Reading"
+                  >
+                    <span className="custom-reading-get-text">Get Reading</span>
+                  </button>
+                )}
+                {isGeneratingAI && (
+                  <div className="taro-generating" style={{ color: "#ffd700" }}>
+                    ✨ Generating reading...
+                  </div>
+                )}
+                {aiInterpretation && (
+                  <button
+                    className="custom-reading-overlay-button custom-reading-get-button"
+                    onClick={() => { playButtonSound(); setShowAiPanel(true); }}
+                    aria-label="Open reading"
+                  >
+                    <span className="custom-reading-get-text">Get Reading</span>
+                  </button>
+                )}
+              </div>
+            )}
 
                 <CustomQuestionWindow mode={customWindowMode} visible={customWindowVisible} />
 
