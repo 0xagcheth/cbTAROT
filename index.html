@@ -2307,7 +2307,19 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-table-centered .taro-table{
   margin:0;
 }
-.get-reading-container{position:absolute;left:50%;bottom:clamp(10px,3vh,28px);transform:translateX(-50%);display:flex;justify-content:center;align-items:center;gap:10px;width:auto;z-index:200;}
+.get-reading-container{
+  position:static;
+  left:auto;
+  bottom:auto;
+  transform:none;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
+  width:100%;
+  margin:clamp(12px,4vh,24px) auto 0;
+  z-index:200;
+}
 .get-reading-on-table{pointer-events:auto;}
 .taro-table{position:relative;width:var(--tableW);aspect-ratio:var(--tableAR);background:rgba(255,255,255,0.05);border-radius:50%;border:1px solid rgba(255,255,255,0.3);box-shadow:0 32px 90px rgba(0,123,255,0.45),0 12px 36px rgba(0,123,255,0.28),inset 0 0 30px rgba(255,255,255,0.05);margin:calc(var(--pad) * 0.1) auto;transition:box-shadow 0.3s ease;transform-origin:center center;transform:translateZ(0);overflow:visible;min-width:var(--tableW);max-width:var(--tableW);flex-shrink:0;will-change:transform;}
 .taro-table::after{content:"";position:absolute;inset:22% 10% 6%;background:radial-gradient(ellipse at 50% 120%,rgba(0,123,255,0.28),rgba(0,123,255,0.12) 38%,transparent 62%);filter:blur(18px);opacity:0.9;pointer-events:none;z-index:0;}
