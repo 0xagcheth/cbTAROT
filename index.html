@@ -434,7 +434,9 @@
           if (!inputEl) return;
           if (isComposingRef.current) return;
           if (!shouldKeepQuestionFocus()) return;
-          const pos=Math.min(inputEl.value?.length ?? 0, Math.max(0, lastQuestionCaretRef.current ?? (inputEl.value?.length ?? 0)));
+          const len=inputEl.value?.length ?? 0;
+          const pos=Math.min(len, Math.max(0, lastQuestionCaretRef.current ?? len));
+          lastQuestionCaretRef.current=pos;
           requestAnimationFrame(() => {
             if (document.activeElement !== inputEl) {
               inputEl.focus({ preventScroll:true });
@@ -1463,10 +1465,30 @@ Important: This must be a unique interpretation for this specific card spread. M
 
         const isAllRevealed = Array.isArray(cards) && cards.length > 0 && Array.isArray(revealedIds) && cards.every((c) => c && c.id !== undefined && revealedIds.includes(c.id));
 
-        const CustomQuestionWindow=({ variant="modal" }) => {
-          const isInline=variant === "inline";
+        const showCustomModal = gameStage === "custom";
+        const showCustomInline = gameStage === "idle" && !showGallery;
+        const customWindowMode = showCustomModal ? "modal" : "inline";
+        const customWindowVisible = showCustomModal || showCustomInline;
+
+        useEffect(() => {
+          if (!customWindowVisible) return;
+          restoreQuestionFocus();
+        }, [userQuestion, customWindowVisible, restoreQuestionFocus]);
+
+        const CustomQuestionWindow=({ mode="modal", visible=true }) => {
+          const isInline=mode === "inline";
           return (
-            <div className={`taro-modal custom-reading-modal ${isInline ? "custom-reading-inline" : ""}`}>
+            <div
+              className={`custom-reading-container ${isInline ? "custom-reading-inline-wrap" : ""}`}
+              style={{
+                visibility: visible ? "visible" : "hidden",
+                pointerEvents: visible ? "auto" : "none",
+                opacity: visible ? 1 : 0,
+                transition: "opacity 160ms ease"
+              }}
+              aria-hidden={!visible}
+            >
+              <div className={`taro-modal custom-reading-modal ${isInline ? "custom-reading-inline" : ""}`}>
               <div className="custom-modal-content">
                 <div className="custom-modal-prompt">✧ What would you like to know? ✧</div>
                 <textarea
@@ -1478,20 +1500,51 @@ Important: This must be a unique interpretation for this specific card spread. M
                   onChange={(e) => {
                     if (isComposingRef.current) return;
                     const val=e.target.value.substring(0,500);
-                    lastQuestionCaretRef.current=e.target?.selectionEnd ?? val.length;
+                    const pos=val.length;
+                    lastQuestionCaretRef.current=pos;
                     setUserQuestion(val);
+                    requestAnimationFrame(() => {
+                      const el=questionInputRef.current;
+                      if (!el) return;
+                      if (document.activeElement !== el) {
+                        el.focus({ preventScroll:true });
+                      }
+                      if (typeof el.setSelectionRange === "function") {
+                        try { el.setSelectionRange(pos, pos); } catch {}
+                      }
+                    });
                   }}
                   onCompositionStart={() => { isComposingRef.current=true; }}
                   onCompositionEnd={(e) => {
                     isComposingRef.current=false;
                     const val=e.target.value.substring(0,500);
-                    lastQuestionCaretRef.current=e.target?.selectionEnd ?? val.length;
+                    lastQuestionCaretRef.current=val.length;
                     setUserQuestion(val);
+                    requestAnimationFrame(() => {
+                      const el=questionInputRef.current;
+                      if (!el) return;
+                      if (document.activeElement !== el) {
+                        el.focus({ preventScroll:true });
+                      }
+                      if (typeof el.setSelectionRange === "function") {
+                        try { el.setSelectionRange(val.length, val.length); } catch {}
+                      }
+                    });
                   }}
-                  onFocus={(e) => { e.stopPropagation(); lastQuestionCaretRef.current=e.target?.selectionEnd ?? (e.target?.value?.length ?? 0); }}
+                  onFocus={(e) => {
+                    e.stopPropagation();
+                    const len=e.target?.value?.length ?? 0;
+                    lastQuestionCaretRef.current=len;
+                    requestAnimationFrame(() => {
+                      const el=questionInputRef.current;
+                      if (!el) return;
+                      if (typeof el.setSelectionRange === "function") {
+                        try { el.setSelectionRange(len, len); } catch {}
+                      }
+                    });
+                  }}
                   onClick={(e) => e.stopPropagation()}
                   onInput={(e) => { e.stopPropagation(); if (!isComposingRef.current) { lastQuestionCaretRef.current=e.target?.selectionEnd ?? (e.target?.value?.length ?? 0); } }}
-                  onBlur={handleQuestionBlur}
                   onMouseDown={(e) => e.stopPropagation()}
                   onMouseUp={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
@@ -1501,9 +1554,10 @@ Important: This must be a unique interpretation for this specific card spread. M
                   autoComplete="off"
                   autoCorrect="on"
                   autoCapitalize="sentences"
+                  autoFocus
                   rows={4}
                   maxLength={500}
-                  disabled={isLoading} />
+                />
                 <div className="custom-modal-actions">
                   <button
                     className="custom-modal-btn primary"
@@ -1520,6 +1574,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                     {isLoading ? "Reading..." : "Choose spread"}
                   </button>
                 </div>
+              </div>
               </div>
             </div>
           );
@@ -1720,10 +1775,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                         </div>
                       )}
 
-                      {gameStage === "custom" && (
-                        <CustomQuestionWindow />
-                      )}
-
                       {gameStage === "choosing" && (
                         <div
                           className="taro-modal choosing-modal"
@@ -1867,11 +1918,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                   </div>
                 </div>
 
-                {gameStage === "idle" && (
-                  <div className="custom-reading-inline-wrap">
-                    <CustomQuestionWindow variant="inline" />
-                  </div>
-                )}
+                <CustomQuestionWindow mode={customWindowMode} visible={customWindowVisible} />
 
             {gameStage === "choosing" && (
               <div className="choosing-back-footer">
