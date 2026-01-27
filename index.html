@@ -2284,8 +2284,15 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 }
 .taro-table-centered{
   transform:none;
-  margin:clamp(12px,6vh,48px) auto;
+  margin:0 auto;
+  min-height:calc(100vh - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));
+  display:flex;
+  align-items:center;
+  justify-content:center;
   transition:transform 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);
+}
+.taro-table-centered .taro-table{
+  margin:0;
 }
 .get-reading-container{position:absolute;left:50%;bottom:clamp(10px,3vh,28px);transform:translateX(-50%);display:flex;justify-content:center;align-items:center;gap:10px;width:auto;z-index:200;}
 .get-reading-on-table{pointer-events:auto;}
