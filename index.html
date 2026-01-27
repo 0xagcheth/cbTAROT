@@ -2304,7 +2304,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   transition:transform 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);
 }
 .taro-table-centered{
-  transform:none;
+  transform:translateY(-100px);
   margin:0 auto;
   min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));
   display:flex;
@@ -2602,7 +2602,7 @@ to{transform:translateY(0);opacity:1;}
 .taro-header p{font-size:0.7rem;margin-top:0.1rem;}
 .taro-main{justify-content:center !important;}
 .taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:none !important;margin:clamp(10px,6vh,48px) auto !important;}
+.taro-table-centered{transform:translateY(-100px) !important;margin:clamp(10px,6vh,48px) auto !important;}
 .taro-table{min-height:150px;padding:0.25rem;margin:calc(var(--pad) * 0.1) 0 !important;box-shadow:0 22px 70px rgba(0,123,255,0.38),0 10px 28px rgba(0,123,255,0.22),inset 0 0 24px rgba(255,255,255,0.05) !important;}
 .taro-table::after{inset:24% 12% 8%;filter:blur(16px);}
 .card-slot{width:var(--card-w);height:var(--card-h);}
@@ -2646,7 +2646,7 @@ to{transform:translateY(0);opacity:1;}
 .taro-table{padding:0.15rem !important;min-height:120px !important;}
 .taro-main{min-height:300px !important;justify-content:center !important;}
 .taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:none !important;margin:clamp(10px,6vh,40px) auto !important;}
+.taro-table-centered{transform:translateY(-100px) !important;margin:clamp(10px,6vh,40px) auto !important;}
 .taro-table{margin:calc(var(--pad) * 0.05) 0 !important;}
 }
 @media (max-height:500px) and (orientation:landscape){.control-buttons{top:calc(5px + var(--safe-area-inset-top,0)) !important;}
@@ -2654,7 +2654,7 @@ to{transform:translateY(0);opacity:1;}
 .taro-container{padding-top:calc(var(--pad) + 35px + var(--safe-area-inset-top,0)) !important;}
 .taro-main{justify-content:center !important;}
 .taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:none !important;margin:clamp(8px,5vh,36px) auto !important;}
+.taro-table-centered{transform:translateY(-100px) !important;margin:clamp(8px,5vh,36px) auto !important;}
 .taro-table{min-height:100px !important;}
 }
 [data-debug="1"] *{outline:1px solid rgba(255,0,0,0.3) !important;}
@@ -2881,7 +2881,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
     transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;
   }
   .taro-table-centered{
-    transform:none !important;
+    transform:translateY(-100px) !important;
   }
 }
 @media (max-width:420px){
