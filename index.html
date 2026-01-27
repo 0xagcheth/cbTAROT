@@ -1636,7 +1636,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                   </button>
                 </div>
 
-                <div className="taro-table-wrap">
+                <div className={`taro-table-wrap ${gameStage === "idle" ? "taro-table-top" : "taro-table-centered"}`}>
                   <div className={`taro-table ${gameStage === "animating" ? "table-animating" : ""}`}>
                     <div className="taro-table-content">
                       {isMainScreen && (
@@ -2276,7 +2276,17 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-hash{text-align:center;padding:1rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:1rem;color:#fff;}
 .taro-hash code{display:block;margin-top:0.5rem;font-family:'Courier New',monospace;color:#4ade80;word-break:break-all;}
 .taro-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:var(--pad) 0;min-height:0;}
-.taro-table-wrap{position:relative;transform:translateY(clamp(-6vh, -4vh, -1vh));transform-origin:center center;will-change:transform;}
+.taro-table-wrap{position:relative;transform-origin:center center;will-change:transform;margin:0 auto;transition:transform 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);}
+.taro-table-top{
+  transform:translateY(clamp(-6vh, -4vh, -1vh));
+  margin:calc(var(--pad) * 0.1) auto;
+  transition:transform 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);
+}
+.taro-table-centered{
+  transform:none;
+  margin:clamp(12px,6vh,48px) auto;
+  transition:transform 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);
+}
 .get-reading-container{position:absolute;left:50%;bottom:clamp(10px,3vh,28px);transform:translateX(-50%);display:flex;justify-content:center;align-items:center;gap:10px;width:auto;z-index:200;}
 .get-reading-on-table{pointer-events:auto;}
 .taro-table{position:relative;width:var(--tableW);aspect-ratio:var(--tableAR);background:rgba(255,255,255,0.05);border-radius:50%;border:1px solid rgba(255,255,255,0.3);box-shadow:0 32px 90px rgba(0,123,255,0.45),0 12px 36px rgba(0,123,255,0.28),inset 0 0 30px rgba(255,255,255,0.05);margin:calc(var(--pad) * 0.1) auto;transition:box-shadow 0.3s ease;transform-origin:center center;transform:translateZ(0);overflow:visible;min-width:var(--tableW);max-width:var(--tableW);flex-shrink:0;will-change:transform;}
@@ -2538,9 +2548,9 @@ to{transform:translateY(0);opacity:1;}
 .taro-reading-text{font-size:0.85rem;line-height:1.7;max-width:95%;}
 .taro-reading-keyword{font-size:0.95rem;margin:1rem 0;}
 .taro-reading-divider{width:60%;margin:2rem auto;}
-.orb-container{transform:translate(-50%, calc(-50% - 20px)) !important;}
+.orb-container{transform:translate(-50%, -50%) !important;}
 .orb-image{transform:translateY(20px);}
-.ball-mist-wrap{transform:translate(-50%, -54%) translateY(-2px) !important;}
+.ball-mist-wrap{transform:translate(-50%, -54%) translateY(0px) !important;}
 .orb-oracle-overlay{transform:translateY(-15px);}
 }
 @media (max-width:768px){.taro-container{padding:calc(var(--pad) + 60px + var(--safe-area-inset-top,0)) var(--pad) var(--pad) var(--pad);min-height:calc(var(--vh,1vh) * 100);height:auto;}
@@ -2548,7 +2558,8 @@ to{transform:translateY(0);opacity:1;}
 .taro-header h1{font-size:1.2rem;margin:0;position:fixed !important;top:calc(8px + var(--safe-area-inset-top,0)) !important;left:0 !important;right:0 !important;width:100% !important;display:block !important;text-align:center !important;z-index:1001 !important;}
 .taro-header p{font-size:0.7rem;margin-top:0.1rem;}
 .taro-main{justify-content:center !important;}
-.taro-table-wrap{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;}
+.taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
+.taro-table-centered{transform:none !important;margin:clamp(10px,6vh,48px) auto !important;}
 .taro-table{min-height:150px;padding:0.25rem;margin:calc(var(--pad) * 0.1) 0 !important;box-shadow:0 22px 70px rgba(0,123,255,0.38),0 10px 28px rgba(0,123,255,0.22),inset 0 0 24px rgba(255,255,255,0.05) !important;}
 .taro-table::after{inset:24% 12% 8%;filter:blur(16px);}
 .card-slot{width:var(--card-w);height:var(--card-h);}
@@ -2591,14 +2602,16 @@ to{transform:translateY(0);opacity:1;}
 .taro-card{width:var(--card-w) !important;height:var(--card-h) !important;}
 .taro-table{padding:0.15rem !important;min-height:120px !important;}
 .taro-main{min-height:300px !important;justify-content:center !important;}
-.taro-table-wrap{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;}
+.taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
+.taro-table-centered{transform:none !important;margin:clamp(10px,6vh,40px) auto !important;}
 .taro-table{margin:calc(var(--pad) * 0.05) 0 !important;}
 }
 @media (max-height:500px) and (orientation:landscape){.control-buttons{top:calc(5px + var(--safe-area-inset-top,0)) !important;}
 .taro-header h1{font-size:1.6rem !important;top:calc(8px + var(--safe-area-inset-top,0)) !important;left:0 !important;right:0 !important;width:100% !important;display:block !important;text-align:center !important;}
 .taro-container{padding-top:calc(var(--pad) + 35px + var(--safe-area-inset-top,0)) !important;}
 .taro-main{justify-content:center !important;}
-.taro-table-wrap{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;}
+.taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
+.taro-table-centered{transform:none !important;margin:clamp(8px,5vh,36px) auto !important;}
 .taro-table{min-height:100px !important;}
 }
 [data-debug="1"] *{outline:1px solid rgba(255,0,0,0.3) !important;}
@@ -2821,8 +2834,11 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
     border-radius:0 !important;
     box-shadow:none !important;
   }
-  .taro-table-wrap{
+  .taro-table-top{
     transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;
+  }
+  .taro-table-centered{
+    transform:none !important;
   }
 }
 @media (max-width:420px){
@@ -2952,6 +2968,18 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 .get-reading-container .taro-button::after{
   max-width: 100% !important;
   box-sizing: border-box !important;
+}
+
+/* Mobile: place Get Reading below the table ("under the desk") */
+@media (max-width: 768px){
+  .get-reading-container{
+    position: static !important;
+    transform: none !important;
+    bottom: auto !important;
+    margin: clamp(18px, 7vh, 48px) auto 0 !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
 }
 
 /* 7) Choosing modal: add scroll when needed */
