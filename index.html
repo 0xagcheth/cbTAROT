@@ -113,7 +113,7 @@
       window.__FC_SDK__ = sdk;
       
       // Optional: detect if running in Mini App context
-      window.__IS_MINIAPP__ = !!sdk.context;
+      window.__IS_MINIAPP__ = !!(sdk?.context && typeof sdk?.actions?.ready === "function");
       
       console.log('Farcaster SDK loaded:', window.__IS_MINIAPP__ ? 'Running in Mini App' : 'Running in browser');
     </script>
@@ -123,7 +123,7 @@
       // This prevents "Cannot convert a BigInt value to a number" errors
       BigInt.prototype.toJSON = function() { return this.toString(); };
       
-      const { useState, useRef, useEffect }=React;
+      const { useState, useRef, useEffect, useCallback }=React;
 
       // Use global ASSET function (defined in script above)
       const ASSET = window.ASSET;
@@ -137,11 +137,24 @@
         'FIVE OF SWORDS': 'FIVE OF SWARDS'
       };
       
+      // Weighted oracle answers for the magic orb
+      const ORACLE_MESSAGES = [
+        { text: "YES", weight: 18 },
+        { text: "NO", weight: 14 },
+        { text: "MAYBE", weight: 10 },
+        { text: "TRY AGAIN", weight: 9 },
+        { text: "UNCLEAR", weight: 9 },
+        { text: "LOL NO", weight: 6 },
+        { text: "NOT YET", weight: 11 },
+        { text: "YOU KNOW", weight: 11 },
+        { text: "FOGGY", weight: 6 },
+        { text: "REALLY?", weight: 6 }
+      ];
+      
       // Payment constants
       const PAYMENT_TO = "0xD4bF185c846F6CAbDaa34122d0ddA43765E754A6";
-      const PRICE_ONE = "0.0003";     // Single card (FREE)
       const PRICE_THREE = "0.0001";   // 3 cards
-      const PRICE_CUSTOM = "0.0003";  // Custom reading
+      const PRICE_READING = "0.0005"; // AI reading (Get Reading)
       const REQUIRED_CHAIN_ID = "0x2105"; // Base mainnet (8453) - uncomment enforcement if needed
 
       // Toggle direct provider fallback
@@ -156,15 +169,15 @@
       const WEI_PER_ETH = 1000000000000000000n; // 1e18 in wei
       // Price constants as BigInt (wei) if needed elsewhere
       const PRICE_THREE_WEI = 100000000000000n;   // 0.0001 ETH in wei
-      const PRICE_CUSTOM_WEI = 300000000000000n;  // 0.0003 ETH in wei
+      const PRICE_READING_WEI = 500000000000000n; // 0.0005 ETH in wei
       // Precomputed decimal/hex wei strings to avoid runtime BigInt math for known prices
       const PRICE_WEI_DEC = {
         [PRICE_THREE]: "100000000000000",
-        [PRICE_CUSTOM]: "300000000000000",
+        [PRICE_READING]: "500000000000000",
       };
       const PRICE_WEI_HEX = {
         [PRICE_THREE]: "0x5af3107a4000",    // 100000000000000 in hex
-        [PRICE_CUSTOM]: "0x110d9316ec000",  // 300000000000000 in hex
+        [PRICE_READING]: "0x1c6bf52634000", // 500000000000000 in hex
       };
       
       // ETH to wei(hex) converter (no libraries needed)
@@ -332,6 +345,15 @@
         return arr.slice(0,count);
       }
 
+      function pickWeighted(list) {
+        const total=list.reduce((s,i)=>s+i.weight,0);
+        let r=Math.random()*total;
+        for (let i=0;i<list.length;i++){
+          r-=list[i].weight;
+          if (r<=0) return list[i];
+        }
+        return list[list.length-1];
+      }
 
       function TaroApp() {
         const [gameStage, setGameStage]=useState("idle");
@@ -368,7 +390,15 @@
         const [payError, setPayError]=useState("");
         const [sdkReady, setSdkReady]=useState(false);
         const [paymentStep, setPaymentStep]=useState(""); // for debugging: "accounts", "balance", "sendTx", "receipt"
+        const [oracleMessage, setOracleMessage]=useState("");
+        const [oracleVisible, setOracleVisible]=useState(false);
+        const [oracleBusy, setOracleBusy]=useState(false);
         const payErrorTimerRef=useRef(null);
+        const oracleHideTimerRef=useRef(null);
+        const oracleClearTimerRef=useRef(null);
+        const isMainScreen=gameStage==="idle" && !showGallery;
+        const oracleBusyRef=useRef(false);
+        const isMainScreenRef=useRef(isMainScreen);
 
         useEffect(() => {
           return () => {
@@ -377,7 +407,37 @@
             audioCacheRef.current.forEach((a) => { try { a.pause(); } catch {} });
             audioCacheRef.current.clear();
             if(payErrorTimerRef.current) clearTimeout(payErrorTimerRef.current);
+            if(oracleHideTimerRef.current) clearTimeout(oracleHideTimerRef.current);
+            if(oracleClearTimerRef.current) clearTimeout(oracleClearTimerRef.current);
           };
+        }, []);
+
+        useEffect(() => {
+          oracleBusyRef.current=oracleBusy;
+        }, [oracleBusy]);
+
+        useEffect(() => {
+          isMainScreenRef.current=isMainScreen;
+        }, [isMainScreen]);
+
+        const triggerOracle=useCallback(() => {
+          if (oracleBusyRef.current || !isMainScreenRef.current) return;
+          if(oracleHideTimerRef.current) clearTimeout(oracleHideTimerRef.current);
+          if(oracleClearTimerRef.current) clearTimeout(oracleClearTimerRef.current);
+          const choice=pickWeighted(ORACLE_MESSAGES);
+          const hold=3200 + Math.random()*1400; // 3–4.6s
+          oracleBusyRef.current=true;
+          setOracleBusy(true);
+          setOracleMessage(choice?.text || "");
+          setOracleVisible(true);
+          oracleHideTimerRef.current=setTimeout(() => {
+            setOracleVisible(false);
+          }, hold);
+          oracleClearTimerRef.current=setTimeout(() => {
+            setOracleMessage("");
+            oracleBusyRef.current=false;
+            setOracleBusy(false);
+          }, hold + 500);
         }, []);
 
         // Preload all card images once to prevent lag when revealing random cards
@@ -430,39 +490,38 @@
           };
         }, [showGallery, activeCard, aiInterpretation, showAiPanel]);
 
-        // Farcaster Mini App: notify ready state after initial render
+        // Farcaster Mini App: notify ready state after initial render (race-condition proof)
         useEffect(() => {
+          let cancelled=false;
           (async () => {
             try {
-              const sdk = window.__FC_SDK__;
-              if (!sdk) {
-                console.log('Farcaster SDK not available (normal in browser mode)');
-                return;
-              }
+              const sdk=await waitForFarcasterSdk(15000);
+              if (!sdk || cancelled) return;
+              if (window.__FC_READY_SENT__) return;
+              window.__FC_READY_SENT__ = true;
 
-              // Wait for first render to complete before hiding splash screen
-              await new Promise((resolve) => requestAnimationFrame(() => resolve()));
-              
-              // Get user data from SDK context (after ready)
+              // wait a paint so UI exists
+              await new Promise((resolve) => requestAnimationFrame(resolve));
+
               try {
                 const context = await sdk.context;
-                if (context?.user) {
+                if (context?.user && !cancelled) {
                   const { fid, pfpUrl } = context.user;
                   setUserFid(fid);
                   setUserAvatarUrl(pfpUrl || "");
-                  console.log('Farcaster user loaded:', { fid, pfpUrl });
                 }
               } catch (e) {
-                console.warn('Failed to get user context:', e);
+                console.warn("Failed to get user context:", e);
               }
-              
+
               await sdk.actions.ready();
-              console.log('Farcaster Mini App ready signal sent');
-              setSdkReady(true);
-            } catch (error) {
-              console.warn('Farcaster ready() failed:', error);
+              if (!cancelled) setSdkReady(true);
+              console.log("✅ Farcaster Mini App ready() sent");
+            } catch (e) {
+              console.warn("ready() pipeline failed:", e);
             }
           })();
+          return () => { cancelled=true; };
         }, []);
 
         // Auto-detect wallet on mount (if already connected)
@@ -508,6 +567,135 @@
             }
           };
         }, [payError]);
+
+        // Pointer-driven fog parallax inside orb
+        useEffect(() => {
+          const el=document.getElementById("orbWrap");
+          if (!el) return;
+
+          const clamp=(v,a,b) => Math.max(a, Math.min(b, v));
+
+          const onMove=(e) => {
+            const r=el.getBoundingClientRect();
+            const cx=(e.clientX - r.left)/r.width;
+            const cy=(e.clientY - r.top)/r.height;
+            const dx=clamp((cx - 0.5) * 2, -1, 1);
+            const dy=clamp((cy - 0.5) * 2, -1, 1);
+            el.style.setProperty("--fog-tx", `${dx * 10}px`);
+            el.style.setProperty("--fog-ty", `${dy * 10}px`);
+          };
+
+          const onLeave=() => {
+            el.style.setProperty("--fog-tx", "0px");
+            el.style.setProperty("--fog-ty", "0px");
+          };
+
+          el.addEventListener("pointermove", onMove, { passive: true });
+          el.addEventListener("pointerleave", onLeave, { passive: true });
+
+          return () => {
+            el.removeEventListener("pointermove", onMove);
+            el.removeEventListener("pointerleave", onLeave);
+          };
+        }, []);
+
+        // Shake-to-oracle for mobile devices
+        useEffect(() => {
+          let lastShake=0;
+          let motionAttached=false;
+
+          const handleMotion=(event) => {
+            const acc=event?.accelerationIncludingGravity || event?.acceleration;
+            if (!acc) return;
+            const now=Date.now();
+            const x=Math.abs(acc.x || 0);
+            if (x > 12 && now - lastShake > 1200) { // quick left-right shake
+              lastShake=now;
+              triggerOracle();
+            }
+          };
+
+          const attachMotion=() => {
+            if (motionAttached) return;
+            window.addEventListener("devicemotion", handleMotion, { passive: true });
+            motionAttached=true;
+          };
+
+          const requestAndAttach=async () => {
+            if (motionAttached) return;
+            if (typeof window==="undefined" || typeof DeviceMotionEvent==="undefined") return;
+            if (typeof DeviceMotionEvent.requestPermission==="function") {
+              try {
+                const res=await DeviceMotionEvent.requestPermission();
+                if (res!=="granted") return;
+              } catch (err) {
+                console.warn("Device motion permission denied:", err);
+                return;
+              }
+            }
+            attachMotion();
+          };
+
+          // Try immediately (Android/desktop), and request on first gesture for iOS
+          requestAndAttach();
+          const onFirstGesture=() => requestAndAttach();
+          window.addEventListener("touchend", onFirstGesture, { once:true });
+          window.addEventListener("click", onFirstGesture, { once:true });
+
+          return () => {
+            if (motionAttached) {
+              window.removeEventListener("devicemotion", handleMotion);
+            }
+            window.removeEventListener("touchend", onFirstGesture);
+            window.removeEventListener("click", onFirstGesture);
+          };
+        }, [triggerOracle]);
+
+        // Magical mist animation inside orb (smoke-like texture)
+        useEffect(() => {
+          const turbA=document.getElementById("mistTurbA");
+          const turbB=document.getElementById("mistTurbB");
+          const turbC=document.getElementById("mistTurbC");
+          const layerA=document.getElementById("mistLayerA");
+          const layerB=document.getElementById("mistLayerB");
+          const layerC=document.getElementById("mistLayerC");
+          if (!turbA || !turbB || !turbC || !layerA || !layerB || !layerC) return;
+
+          let raf=0;
+
+          const smoothNoise=(t, seed, speed=1, amp=1) => (
+            Math.sin(t*speed + seed*0.7) +
+            0.6*Math.sin(t*speed*0.47 + seed*1.1) +
+            0.4*Math.sin(t*speed*0.23 + seed*1.9)
+          ) * 0.5 * amp;
+
+          const loop=(now) => {
+            raf=requestAnimationFrame(loop);
+            const tSec=now*0.001;
+
+            const fxA=0.010 + smoothNoise(tSec, 1.1, 1.60, 0.0090);
+            const fyA=0.0135 + smoothNoise(tSec, 2.2, 1.40, 0.0090);
+            const fxB=0.0125 + smoothNoise(tSec, 3.7, 1.30, 0.0110);
+            const fyB=0.0205 + smoothNoise(tSec, 4.4, 1.24, 0.0110);
+            const fxC=0.0068 + smoothNoise(tSec, 5.9, 1.70, 0.0060);
+            const fyC=0.0108 + smoothNoise(tSec, 6.6, 1.60, 0.0060);
+
+            turbA.setAttribute("baseFrequency", `${fxA.toFixed(4)} ${fyA.toFixed(4)}`);
+            turbB.setAttribute("baseFrequency", `${fxB.toFixed(4)} ${fyB.toFixed(4)}`);
+            turbC.setAttribute("baseFrequency", `${fxC.toFixed(4)} ${fyC.toFixed(4)}`);
+
+            layerA.style.setProperty("--mist-dx-a", `${smoothNoise(tSec, 8.1, 0.70, 24)}px`);
+            layerA.style.setProperty("--mist-dy-a", `${smoothNoise(tSec, 9.2, 0.66, 24)}px`);
+            layerB.style.setProperty("--mist-dx-b", `${smoothNoise(tSec, 10.4, 0.60, 34)}px`);
+            layerB.style.setProperty("--mist-dy-b", `${smoothNoise(tSec, 11.6, 0.60, 34)}px`);
+            layerC.style.setProperty("--mist-dx-c", `${smoothNoise(tSec, 12.8, 0.76, 20)}px`);
+            layerC.style.setProperty("--mist-dy-c", `${smoothNoise(tSec, 13.9, 0.76, 20)}px`);
+          };
+
+          raf=requestAnimationFrame(loop);
+          return () => cancelAnimationFrame(raf);
+        }, []);
+
 
         // Subscribe to account changes to keep wallet auto-synced
         useEffect(() => {
@@ -1036,39 +1224,15 @@ Important: This must be a unique interpretation for this specific card spread. M
 
           if (spread === "ONE" || spread === "THREE" || spread === "CUSTOM") {
             try {
-              // Single card is FREE - no payment required
-              if (spread === "ONE") {
-                console.log("Starting free single card reading");
-                await startSpreadAnimation(spread);
-                return;
+              if (spread === "THREE") {
+                await pay(PRICE_THREE);
               }
-
-              // Payment gating for THREE and CUSTOM spreads
-              let price;
-              if (spread === "THREE") price = PRICE_THREE;
-              else if (spread === "CUSTOM") price = PRICE_CUSTOM;
-
-              // Ensure wallet is connected before payment (helps with WebView stability)
-              let activeAddress = walletAddress;
-              if (!activeAddress) {
-                console.log("Wallet not connected, connecting first...");
-                const connectedAddr = await connectWallet();
-                activeAddress = connectedAddr || walletAddress;
-                if (!activeAddress) {
-                  throw new Error("Wallet connection required for payment");
-                }
-              }
-
-              // Request payment
-              const txHash = await pay(price);
-              console.log(`Payment successful for ${spread}:`, txHash);
-
-              // Proceed with reading after successful payment
               await startSpreadAnimation(spread);
             } catch (e) {
               // Payment failed or cancelled - don't proceed
               console.error("Payment failed, reading cancelled:", e);
               setSelectedSpread(null);
+              setGameStage("idle");
             }
           }
         };
@@ -1119,15 +1283,21 @@ Important: This must be a unique interpretation for this specific card spread. M
           }
         };
 
-        const generateCustomInterpretation=async (revealedIdsArray) => {
+        const generateCustomInterpretation=async (revealedIdsArray, overrideQuestion) => {
           if (!Array.isArray(revealedIdsArray)) revealedIdsArray = revealedIds || [];
           if (!Array.isArray(cards) || cards.length === 0) {
             console.warn('generateCustomInterpretation: no cards available');
             return;
           }
           const allRevealed = cards.length > 0 && cards.every((c) => revealedIdsArray.includes(c.id));
-          const question = (userQuestion || '').trim().substring(0, 500);
-          if (selectedSpread === "CUSTOM" && allRevealed && !aiInterpretation && question && question.length >= 3) {
+          let question = (overrideQuestion ?? userQuestion ?? '').trim().substring(0, 500);
+          if (!question || question.length < 3) {
+            if (selectedSpread === "THREE") {
+              question = "Three-card reading";
+            }
+          }
+          const allowAi = selectedSpread === "CUSTOM" || selectedSpread === "THREE";
+          if (allowAi && allRevealed && !aiInterpretation && question && question.length >= 3) {
             setIsGeneratingAI(true);
             try {
               const interpretation = await getAIInterpretation(cards, question);
@@ -1166,7 +1336,7 @@ Important: This must be a unique interpretation for this specific card spread. M
           setRevealedIds((prev) => {
             const newRevealedIds=[...prev, card.id];
             const question=(userQuestion || '').trim();
-            // Only auto-generate if all cards are revealed AND question exists
+            // Auto-generate for CUSTOM when question is valid
             if (selectedSpread === "CUSTOM" && Array.isArray(cards) && cards.length > 0 && newRevealedIds.length === cards.length && question && question.length>=3) {
               setTimeout(() => {
                 generateCustomInterpretation(newRevealedIds);
@@ -1249,6 +1419,54 @@ Important: This must be a unique interpretation for this specific card spread. M
 
         const isAllRevealed = Array.isArray(cards) && cards.length > 0 && Array.isArray(revealedIds) && cards.every((c) => c && c.id !== undefined && revealedIds.includes(c.id));
 
+        const CustomQuestionWindow=({ variant="modal" }) => {
+          const isInline=variant === "inline";
+          return (
+            <div className={`taro-modal custom-reading-modal ${isInline ? "custom-reading-inline" : ""}`}>
+              <div className="custom-modal-content">
+                <div className="custom-modal-prompt">✧ What would you like to know? ✧</div>
+                <textarea
+                  className="custom-modal-input"
+                  placeholder="Enter your question here..."
+                  value={userQuestion}
+                  onChange={(e) => {
+                    const val=e.target.value.substring(0,500);
+                    setUserQuestion(val);
+                  }}
+                  onFocus={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  onInput={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onKeyUp={(e) => e.stopPropagation()}
+                  onKeyPress={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onMouseUp={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                  rows={4}
+                  maxLength={500}
+                  disabled={isLoading} />
+                <div className="custom-modal-actions">
+                  <button
+                    className="custom-modal-btn primary"
+                    onClick={() => {
+                      const question = (userQuestion || '').trim();
+                      if (!question || question.length < 3) {
+                        alert('Please enter your question first (at least 3 characters).');
+                        return;
+                      }
+                      setGameStage("choosing");
+                    }}
+                    disabled={isLoading || isPaying || !userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3}
+                  >
+                    {isLoading ? "Reading..." : "Choose spread"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
         return (
           <div className="taro-root">
             <div
@@ -1292,10 +1510,57 @@ Important: This must be a unique interpretation for this specific card spread. M
                 <div className="taro-table-wrap">
                   <div className={`taro-table ${gameStage === "animating" ? "table-animating" : ""}`}>
                     <div className="taro-table-content">
+                      {isMainScreen && (
+                        <div className="orb-container" id="orbWrap">
+                          <div className="ball-mist-wrap" aria-hidden="true">
+                            <svg className="mist-defs" width="0" height="0" focusable="false" aria-hidden="true">
+                              <defs>
+                                <filter id="mistBase" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+                                  <feTurbulence id="mistTurbA" type="fractalNoise" baseFrequency="0.010 0.015" numOctaves="4" seed="12" result="noiseA" />
+                                  <feGaussianBlur in="noiseA" stdDeviation="0.40" result="blurA" />
+                                  <feColorMatrix in="blurA" type="matrix" values="1.30 0 0 0 0  0 1.30 0 0 0  0 0 1.35 0 0  0 0 0 0.96 0" />
+                                </filter>
+                                <filter id="mistVein" x="-42%" y="-42%" width="184%" height="184%" color-interpolation-filters="sRGB">
+                                  <feTurbulence id="mistTurbB" type="fractalNoise" baseFrequency="0.013 0.021" numOctaves="5" seed="21" result="noiseB" />
+                                  <feGaussianBlur in="noiseB" stdDeviation="0.32" result="blurB" />
+                                  <feColorMatrix in="blurB" type="matrix" values="0.48 0 0 0 -0.10  0 0.46 0 0 -0.10  0 0 0.78 0 -0.08  0 0 0 0.98 0" />
+                                </filter>
+                                <filter id="mistLight" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
+                                  <feTurbulence id="mistTurbC" type="fractalNoise" baseFrequency="0.0075 0.011" numOctaves="3" seed="33" result="noiseC" />
+                                  <feGaussianBlur in="noiseC" stdDeviation="0.30" result="blurC" />
+                                  <feColorMatrix in="blurC" type="matrix" values="0.90 0 0 0 0  0 0.96 0 0 0  0 0 1.36 0 0  0 0 0 0.64 0" />
+                                </filter>
+                              </defs>
+                            </svg>
 
-                      {gameStage === "idle" && (
-                        <div className="taro-deck" onClick={handleChooseSpreadClick}>
-                          <div className="taro-deck-inner" />
+                            <svg className="mist-layer mist-layer-a" id="mistLayerA" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+                              <rect x="-8" y="-8" width="116" height="116" fill="#0a0f28" opacity="0.98" filter="url(#mistBase)" />
+                            </svg>
+                            <svg className="mist-layer mist-layer-b" id="mistLayerB" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+                              <rect x="-8" y="-8" width="116" height="116" fill="#070814" opacity="0.96" filter="url(#mistVein)" />
+                            </svg>
+                            <svg className="mist-layer mist-layer-c" id="mistLayerC" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+                              <rect x="-9" y="-9" width="118" height="118" fill="#66c0ff" opacity="0.52" filter="url(#mistLight)" />
+                            </svg>
+                          </div>
+
+                          <img 
+                            src={ASSET("Assets/imagine/bllv2.png")} 
+                            alt="Magic Ball" 
+                            className="orb-image"
+                          />
+
+                          <div className="orb-oracle-overlay">
+                            <button
+                              className="orb-oracle-hit"
+                              disabled={oracleBusy}
+                              onClick={triggerOracle}
+                              aria-label="Ask the oracle"
+                            />
+                            <div className={`orb-oracle-text ${oracleVisible ? "visible" : ""}`}>
+                              <span>{oracleMessage || "ASK"}</span>
+                            </div>
+                          </div>
                         </div>
                       )}
 
@@ -1351,49 +1616,54 @@ Important: This must be a unique interpretation for this specific card spread. M
                         </div>
                       )}
 
-                      {gameStage === "custom" && (
-                        <div className="taro-modal custom-reading-modal">
-                          <div className="custom-modal-content">
-                            <div className="custom-modal-prompt">✧ What would you like to know? ✧</div>
-                            <textarea
-                              className="custom-modal-input"
-                              placeholder="Enter your question here..."
-                              value={userQuestion}
-                              onChange={(e) => {
-                                const val=e.target.value.substring(0,500);
-                                setUserQuestion(val);
+                      {isAllRevealed && (selectedSpread === "THREE" || selectedSpread === "CUSTOM") && (
+                        <div className="get-reading-container get-reading-on-table">
+                          {!aiInterpretation && !isGeneratingAI && (
+                            <button
+                              className="custom-reading-overlay-button custom-reading-get-button"
+                              onClick={async () => {
+                                if (isPaying) return;
+                                playButtonSound();
+                                const questionRaw=(userQuestion || '').trim();
+                                const hasQuestion=questionRaw && questionRaw.length>=3;
+                                const finalQuestion=hasQuestion ? questionRaw : (selectedSpread === "THREE" ? "Three-card reading" : "");
+                                if (selectedSpread === "CUSTOM" && !finalQuestion) {
+                                  alert('Please enter your question first (at least 3 characters).');
+                                  setGameStage("custom");
+                                  return;
+                                }
+                                try {
+                                  await pay(PRICE_READING);
+                                  await generateCustomInterpretation(revealedIds, finalQuestion);
+                                } catch (err) {
+                                  console.error("Get Reading payment or generation failed:", err);
+                                }
                               }}
-                              rows={4}
-                              maxLength={500}
-                              disabled={isLoading} />
-                            <div className="custom-modal-actions">
-                              <button
-                                className="custom-modal-btn secondary"
-                                onClick={() => {
-                                  setGameStage("choosing");
-                                  setUserQuestion("");
-                                }}
-                                disabled={isLoading}
-                              >
-                                &lt;
-                              </button>
-                              <button
-                                className="custom-modal-btn primary"
-                                onClick={() => {
-                                  const question = (userQuestion || '').trim();
-                                  if (!question || question.length < 3) {
-                                    alert('Please enter your question first (at least 3 characters).');
-                                    return;
-                                  }
-                                  handleSelectSpread("CUSTOM");
-                                }}
-                                disabled={isLoading || isPaying || !userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3}
-                              >
-                                {isPaying ? "Paying..." : isLoading ? "Reading..." : "✨"}
-                              </button>
+                              disabled={isGeneratingAI || isPaying || (selectedSpread === "CUSTOM" && (!userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3))}
+                              aria-label="Get Reading"
+                            >
+                              <span className="custom-reading-get-text">Get Reading</span>
+                            </button>
+                          )}
+                          {isGeneratingAI && (
+                            <div className="taro-generating" style={{ color: "#ffd700" }}>
+                              ✨ Generating reading...
                             </div>
-                          </div>
+                          )}
+                          {aiInterpretation && (
+                            <button
+                              className="custom-reading-overlay-button custom-reading-get-button"
+                              onClick={() => { playButtonSound(); setShowAiPanel(true); }}
+                              aria-label="Open reading"
+                            >
+                              <span className="custom-reading-get-text">Get Reading</span>
+                            </button>
+                          )}
                         </div>
+                      )}
+
+                      {gameStage === "custom" && (
+                        <CustomQuestionWindow />
                       )}
 
                       {gameStage === "choosing" && (
@@ -1513,16 +1783,14 @@ Important: This must be a unique interpretation for this specific card spread. M
 
                           <div className="modal-bottom-buttons">
                             <button
-                              className="custom-reading-overlay-button"
-                              disabled={isLoading || isPaying}
-                              onClick={() => { playButtonSound(); setGameStage("custom"); }}
-                              style={{ opacity: (isLoading || isPaying) ? 0.5 : 1 }}
+                              className="modal-back-btn"
+                              onClick={() => {
+                                playButtonSound();
+                                setGameStage("idle");
+                              }}
+                              aria-label="Back"
                             >
-                              <img
-                                src={ASSET("Assets/imagine/cr.png")}
-                                alt="Custom Reading"
-                                className="custom-reading-underlay-image"
-                              />
+                              &lt;
                             </button>
                           </div>
                         </div>
@@ -1541,55 +1809,22 @@ Important: This must be a unique interpretation for this specific card spread. M
                   </div>
                 </div>
 
-                {isAllRevealed && selectedSpread === "CUSTOM" && (
-                  <div className="get-reading-container">
-                    {!aiInterpretation && !isGeneratingAI && (
-                      <>
-                        {(() => {
-                          const question = (userQuestion || '').trim();
-                          const isEmpty = !question || question.length < 3;
-                          if (isEmpty) {
-                            return (
-                              <div style={{color:'#ffd700',marginBottom:'1rem',textAlign:'center',fontSize:'0.9rem'}}>
-                                ⚠️ Question missing. Please go back and enter your question first (at least 3 characters).
-                              </div>
-                            );
-                          }
-                          return null;
-                        })()}
-                        <button
-                          className="taro-button"
-                          onClick={() => {
-                            playButtonSound();
-                            const question=(userQuestion || '').trim();
-                            if (!question || question.length<3) {
-                              alert('Question is missing or too short. Please go back and enter your question again (at least 3 characters).');
-                              setGameStage("custom");
-                              return;
-                            }
-                            generateCustomInterpretation(revealedIds);
-                          }}
-                          disabled={isGeneratingAI || !userQuestion || !userQuestion.trim() || userQuestion.trim().length<3}
-                        >
-                          {isGeneratingAI ? "Generating..." : "Get Reading"}
-                        </button>
-                      </>
-                    )}
-                    {isGeneratingAI && (
-                      <div className="taro-generating" style={{ color: "#ffd700" }}>
-                        ✨ Generating reading...
-                      </div>
-                    )}
-                    {aiInterpretation && (
-                      <button
-                        className="taro-button"
-                        onClick={() => { playButtonSound(); setShowAiPanel(true); }}
-                      >
-                        Get Reading
-                      </button>
-                    )}
+                {gameStage === "idle" && (
+                  <div className="custom-reading-inline-wrap">
+                    <CustomQuestionWindow variant="inline" />
                   </div>
                 )}
+
+            {gameStage === "choosing" && (
+              <div className="choosing-back-footer">
+                <button
+                  className="taro-button secondary"
+                  onClick={() => { playButtonSound(); setGameStage("idle"); }}
+                >
+                  &lt;
+                </button>
+              </div>
+            )}
 
                 {gameStage === "animating" && (
                   <div className="taro-animating">
@@ -1748,12 +1983,12 @@ Important: This must be a unique interpretation for this specific card spread. M
                 </div>
               )}
 
-              {selectedSpread === "CUSTOM" && isAllRevealed && aiInterpretation && showAiPanel && (
+              {(selectedSpread === "CUSTOM" || selectedSpread === "THREE") && isAllRevealed && aiInterpretation && showAiPanel && (
                 <div className="taro-reading-overlay" onClick={() => setShowAiPanel(false)}>
                   <div className="taro-reading-panel taro-ai-panel" onClick={(e) => e.stopPropagation()}>
                     <h2 className="taro-ai-title">✧ Your Personalized Reading ✧</h2>
                     <div className="taro-ai-question-chip">
-                      <span className="taro-ai-question-text">"{userQuestion}"</span>
+                      <span className="taro-ai-question-text">"{(userQuestion && userQuestion.trim().length>=3) ? userQuestion : "Three-card reading"}"</span>
                     </div>
                     {isGeneratingAI ? (
                       <div className="taro-ai-loading">
@@ -1881,7 +2116,7 @@ Important: This must be a unique interpretation for this specific card spread. M
     <style>
 *{box-sizing:border-box;}
 html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0);padding-bottom:var(--safe-area-inset-bottom,0);padding-left:var(--safe-area-inset-left,0);padding-right:var(--safe-area-inset-right,0);overflow-x:hidden;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overscroll-behavior:none;-webkit-overflow-scrolling:auto;background:#040b1e;background-image:var(--bg-url,url('./Assets/imagine/b.png'));background-size:cover;background-position:center center;background-repeat:no-repeat;background-attachment:fixed;}
-#root{height:100%;width:100%;position:relative;}:root{--safe-area-inset-top:env(safe-area-inset-top,0);--safe-area-inset-bottom:env(safe-area-inset-bottom,0);--safe-area-inset-left:env(safe-area-inset-left,0);--safe-area-inset-right:env(safe-area-inset-right,0);--vh:1vh;--pad:clamp(12px,3vw,32px);--space:var(--pad);--tableW:min(100vw,900px);--tableAR:1 / 0.8;--tableH:calc(var(--tableW) * 0.8);--card-w:clamp(92px,22vw,140px);--card-ratio:1.55;--card-h:calc(var(--card-w) * var(--card-ratio));--cardW:var(--card-w);--cardH:var(--card-h);--deckW:clamp(100px,24vw,140px);--deckH:calc(var(--deckW) * 1.46);--h1:clamp(20px,5vw,36px);--p:clamp(12px,3vw,16px);}
+#root{height:100%;width:100%;position:relative;}:root{--safe-area-inset-top:env(safe-area-inset-top,0);--safe-area-inset-bottom:env(safe-area-inset-bottom,0);--safe-area-inset-left:env(safe-area-inset-left,0);--safe-area-inset-right:env(safe-area-inset-right,0);--vh:1vh;--pad:clamp(12px,3vw,32px);--space:var(--pad);--tableW:min(100vw,900px);--tableAR:1 / 0.65;--tableH:calc(var(--tableW) * 0.65);--card-w:clamp(92px,22vw,140px);--card-ratio:1.55;--card-h:calc(var(--card-w) * var(--card-ratio));--cardW:var(--card-w);--cardH:var(--card-h);--deckW:clamp(100px,24vw,140px);--deckH:calc(var(--deckW) * 1.46);--h1:clamp(20px,5vw,36px);--p:clamp(12px,3vw,16px);}
 @media (orientation:landscape) and (max-height:500px){:root{--tableAR:1 / 0.5;--tableH:calc(var(--tableW) * 0.5);--card-w:clamp(92px,26vw,132px);--cardW:var(--card-w);--deckW:clamp(87px,21vw,127px);}
 }
 .taro-root{position:relative;min-height:100dvh;min-height:calc(var(--vh,1vh) * 100);width:100%;overflow-x:hidden;font-family:'Georgia','Times New Roman',serif;}
@@ -1920,10 +2155,27 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-hash{text-align:center;padding:1rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:1rem;color:#fff;}
 .taro-hash code{display:block;margin-top:0.5rem;font-family:'Courier New',monospace;color:#4ade80;word-break:break-all;}
 .taro-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:var(--pad) 0;min-height:0;}
-.taro-table-wrap{position:relative;transform:translateY(clamp(-10vh, -8vh, -3vh));transform-origin:center center;will-change:transform;}
-.get-reading-container{position:relative;display:flex;justify-content:center;align-items:center;width:100%;margin-top:clamp(-56px, -14vh, -28px) !important;z-index:20;}
+.taro-table-wrap{position:relative;transform:translateY(clamp(-6vh, -4vh, -1vh));transform-origin:center center;will-change:transform;}
+.get-reading-container{position:absolute;left:50%;bottom:clamp(10px,3vh,28px);transform:translateX(-50%);display:flex;justify-content:center;align-items:center;gap:10px;width:auto;z-index:200;}
+.get-reading-on-table{pointer-events:auto;}
 .taro-table{position:relative;width:var(--tableW);aspect-ratio:var(--tableAR);background:rgba(255,255,255,0.05);border-radius:50%;border:1px solid rgba(255,255,255,0.3);box-shadow:0 0 80px rgba(0,123,255,0.4),0 0 160px rgba(0,123,255,0.2),inset 0 0 30px rgba(255,255,255,0.05);margin:calc(var(--pad) * 0.1) auto;transition:box-shadow 0.3s ease;transform-origin:center center;transform:translateZ(0);overflow:visible;min-width:var(--tableW);max-width:var(--tableW);flex-shrink:0;will-change:transform;}
 .taro-table-content{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;pointer-events:none;overflow:visible;}
+.taro-table-center{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);width:min(40vw,320px);max-width:320px;height:auto;pointer-events:none !important;user-select:none;z-index:3;opacity:0.95;filter:none;}
+.orb-container{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);width:min(40vw,320px);max-width:320px;height:auto;pointer-events:auto;z-index:2;}
+#orbWrap{--fog-tx:0px;--fog-ty:0px;--mist-dx-a:0px;--mist-dy-a:0px;--mist-dx-b:0px;--mist-dy-b:0px;--mist-dx-c:0px;--mist-dy-c:0px;}
+.ball-mist-wrap{position:absolute;left:50%;top:50%;width:min(88%,460px);aspect-ratio:1/1;transform:translate(-50%,-54%) translateY(-22px);border-radius:9999px;overflow:hidden;clip-path:circle(50% at 50% 50%);-webkit-mask-image:radial-gradient(circle, #000 74%, transparent 78%);mask-image:radial-gradient(circle, #000 74%, transparent 78%);z-index:1;pointer-events:none;isolation:isolate;background:radial-gradient(circle at 50% 60%,rgba(8,10,24,0.82) 0%,rgba(3,5,14,0.92) 70%,rgba(1,2,6,0.96) 100%);box-shadow:0 0 30px rgba(103,125,255,0.18),0 0 60px rgba(54,78,180,0.12);}
+.mist-defs{position:absolute;inset:0;pointer-events:none;}
+.mist-layer{position:absolute;inset:-18%;width:136%;height:136%;transform:translate3d(calc(var(--fog-tx) + var(--mist-dx-a,0px)),calc(var(--fog-ty) + var(--mist-dy-a,0px)),0) scale(1.22);mix-blend-mode:screen;opacity:0.95;will-change:transform,opacity,filter;pointer-events:none;filter:blur(0.2px);}
+.mist-layer-b{mix-blend-mode:soft-light;opacity:0.90;transform:translate3d(calc(var(--fog-tx) + var(--mist-dx-b,0px)),calc(var(--fog-ty) + var(--mist-dy-b,0px)),0) scale(1.30);}
+.mist-layer-c{mix-blend-mode:screen;opacity:0.70;transform:translate3d(calc(var(--fog-tx) + var(--mist-dx-c,0px)),calc(var(--fog-ty) + var(--mist-dy-c,0px)),0) scale(1.18);}
+.orb-sparkles{display:none;}
+.orb-image{position:relative;width:100%;height:auto;pointer-events:none;user-select:none;z-index:2;}
+.orb-oracle-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:3;transform:translateY(-35px);}
+.orb-oracle-hit{position:absolute;width:96%;aspect-ratio:1/1;border-radius:50%;border:1px solid rgba(255,255,255,0.08);background:radial-gradient(circle at 50% 50%,rgba(120,160,255,0.08) 0%,rgba(80,120,200,0.05) 35%,rgba(0,0,0,0) 70%);box-shadow:0 0 25px rgba(120,160,255,0.12),0 0 55px rgba(50,80,180,0.08);pointer-events:auto;cursor:pointer;transition:transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;}
+.orb-oracle-hit:hover{transform:scale(1.03);border-color:rgba(255,255,255,0.18);box-shadow:0 0 30px rgba(160,200,255,0.16),0 0 70px rgba(80,140,255,0.12);}
+.orb-oracle-hit:disabled{cursor:wait;filter:saturate(0.7);opacity:0.7;}
+.orb-oracle-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transform:scale(0.92);transition:opacity 0.7s ease-in-out, transform 0.7s ease-in-out;font-family:'Georgia','Times New Roman',serif;font-weight:600;font-size:clamp(18px,4vw,28px);color:rgba(255,255,255,0.5);text-shadow:0 0 10px rgba(140,180,255,0.65),0 0 18px rgba(80,140,255,0.32),0 0 24px rgba(0,0,0,0.32);letter-spacing:0.12em;}
+.orb-oracle-text.visible{opacity:1;transform:scale(1.02);}
 .taro-table-content > *{pointer-events:auto;overflow:visible;}
 .table-animating{animation:tablePulse 1.2s ease-in-out;box-shadow:0 0 120px rgba(0,123,255,0.6),0 0 240px rgba(0,123,255,0.3),inset 0 0 50px rgba(255,255,255,0.2);transform-origin:center center !important;margin:calc(var(--pad) * 0.1) auto !important;width:var(--tableW) !important;aspect-ratio:var(--tableAR) !important;border-radius:50% !important;min-width:var(--tableW) !important;max-width:var(--tableW) !important;}
 @keyframes tablePulse{0%,100%{transform:translateZ(0) scale(1);}
@@ -1966,13 +2218,16 @@ to{transform:rotate(360deg);}
 }
 .modal-header h2{margin:0;flex:1;text-align:center;}
 .custom-modal-content{display:flex;flex-direction:column;align-items:center;gap:clamp(24px,6vw,40px);max-width:500px;width:100%;box-sizing:border-box;}
+.custom-reading-inline-wrap{width:100%;display:flex;justify-content:center;align-items:flex-start;margin-top:clamp(-36px,-6vh,8px);padding:0 var(--pad);box-sizing:border-box;position:relative;z-index:5;}
+.custom-reading-inline{position:static !important;transform:none !important;margin:0 auto;width:min(640px,95vw);max-width:640px;padding:clamp(1.25rem,4vw,2rem);box-shadow:0 0 40px rgba(0,123,255,0.25),0 0 80px rgba(0,123,255,0.1);}
+.custom-reading-inline .custom-modal-input{min-height:112px;}
 .custom-modal-title{width:100%;text-align:center;margin:0;}
 .custom-modal-hint{width:100%;text-align:center;margin:0;opacity:0.8;}
 .custom-modal-prompt{text-align:left;color:rgba(255,255,255,0.88);font-size:clamp(0.95rem,2.1vw,1.05rem);font-weight:300;letter-spacing:0.05em;margin:0 0 clamp(16px,4vw,24px) 0;padding-left:6px;text-shadow:0 0 12px rgba(245,197,66,0.25);font-family:'Georgia',serif;line-height:1.35;white-space:nowrap;}
 .custom-modal-input{width:100%;padding:clamp(20px,5vw,28px) clamp(20px,5vw,28px);border:none;border-radius:16px;background:rgba(20,30,60,0.4);color:rgba(255,255,255,0.88);font-size:clamp(15px,3.5vw,17px);font-family:'Georgia',serif;resize:vertical;box-sizing:border-box;line-height:1.7;text-align:left;box-shadow:0 0 20px rgba(106,169,255,0.1),inset 0 0 15px rgba(245,197,66,0.05);transition:all 0.4s ease;min-height:120px;vertical-align:middle;}
 .custom-modal-input:focus{outline:none;background:rgba(20,30,60,0.5);box-shadow:0 0 30px rgba(106,169,255,0.2),inset 0 0 20px rgba(245,197,66,0.08);}
 .custom-modal-input::placeholder{color:rgba(255,255,255,0.5);font-style:italic;text-align:center;}
-.custom-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,4vw,24px);width:100%;margin-top:clamp(8px,2vw,16px);}
+.custom-modal-actions{display:flex;justify-content:center;gap:clamp(16px,4vw,24px);width:100%;margin-top:clamp(8px,2vw,16px);}
 .custom-modal-btn{padding:clamp(14px,3.5vw,18px) clamp(24px,6vw,32px);border:none;border-radius:50px;font-size:clamp(15px,3.5vw,17px);font-weight:400;cursor:pointer;transition:all 0.3s ease;min-height:52px;box-sizing:border-box;font-family:'Georgia',serif;letter-spacing:0.05em;}
 .custom-modal-btn.primary{background:rgba(245,197,66,0.15);color:rgba(245,197,66,0.95);box-shadow:0 0 20px rgba(245,197,66,0.2),inset 0 0 10px rgba(245,197,66,0.1);border:1px solid rgba(245,197,66,0.3);}
 .custom-modal-btn.primary:hover:not(:disabled){background:rgba(245,197,66,0.2);box-shadow:0 0 30px rgba(245,197,66,0.3),inset 0 0 15px rgba(245,197,66,0.15);transform:translateY(-2px);}
@@ -2001,6 +2256,9 @@ to{transform:rotate(360deg);}
 @media (max-width:768px){.taro-container{overflow-y:auto;min-height:calc(var(--vh,1vh) * 100);}
 .taro-reading-overlay,.taro-modal,.gallery-modal{padding:var(--pad);}
 .taro-reading-panel,.taro-modal,.gallery-modal{max-height:calc(100svh - (var(--pad) * 2) - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));overflow-y:auto;width:min(92vw,600px);margin:0 auto;}
+.get-reading-container{bottom:clamp(12px,3vh,24px);}
+.custom-reading-inline-wrap{margin-top:8px;padding:0 calc(var(--pad) * 0.75);}
+.custom-reading-inline{width:100%;max-width:none;}
 .custom-modal-content{gap:var(--pad);max-width:100%;}
 .custom-modal-input{font-size:16px;}
 .custom-modal-actions{gap:calc(var(--pad) / 2);}
@@ -2015,10 +2273,13 @@ to{transform:rotate(360deg);}
 .taro-option:hover:not(:disabled){background:linear-gradient(135deg,rgba(0,123,255,0.25),rgba(0,50,150,0.25),rgba(0,123,255,0.2)
  );backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,123,255,0.4),inset 0 1px 0 rgba(255,255,255,0.2),inset 0 -1px 0 rgba(0,0,0,0.05);border-color:rgba(255,255,255,0.3);}
 .taro-option:disabled{opacity:0.5;cursor:not-allowed;}
-.custom-reading-overlay-button{position:relative;width:133px;height:44px;border:none;background:transparent;border-radius:8px;transition:all 0.3s ease;cursor:pointer;padding:0;margin:0;display:inline-block;overflow:hidden;box-sizing:border-box;}
-.custom-reading-overlay-button:hover:not(:disabled){transform:translateY(-2px) scale(1.05);box-shadow:0 8px 25px rgba(0,123,255,0.4);}
-.custom-reading-overlay-button:disabled{opacity:0.5;cursor:not-allowed;}
-.custom-reading-underlay-image{display:block;width:100%;height:100%;object-fit:cover;border-radius:8px;margin:0;padding:0;position:absolute;top:0;left:0;}
+.custom-reading-overlay-button{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:0.6rem 2rem;color:rgba(255,255,255,0.7);cursor:pointer;transition:all 0.25s ease;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;font-family:inherit;font-weight:300;display:inline-flex;align-items:center;justify-content:center;min-width:140px;box-sizing:border-box;box-shadow:none;}
+.custom-reading-overlay-button:hover:not(:disabled){background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.85);}
+.custom-reading-overlay-button:disabled{opacity:0.45;cursor:not-allowed;}
+.custom-reading-underlay-image{display:none;}
+.custom-reading-get-button{width:auto;height:auto;padding:0.6rem 2rem;gap:0.35rem;}
+.custom-reading-get-text{position:relative;z-index:1;color:rgba(255,255,255,0.85);font-family:inherit;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;font-weight:300;}
+.choosing-back-footer{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:12px;z-index:50;}
 .taro-custom-modal{max-width:500px;width:90%;}
 .spread-selection{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:0.5rem clamp(0.75rem,2vw,1.5rem);margin:calc(var(--pad) * 0.25) 0;justify-items:center;align-items:center;max-width:100%;}
 @media (max-width:768px){.spread-selection{gap:calc(var(--pad) * 0.25);margin:calc(var(--pad) * 0.125) 0;}
@@ -2161,7 +2422,7 @@ to{transform:translateY(0);opacity:1;}
 .taro-header h1{font-size:1.2rem;margin:0;position:fixed !important;top:calc(8px + var(--safe-area-inset-top,0)) !important;left:0 !important;right:0 !important;width:100% !important;display:block !important;text-align:center !important;z-index:1001 !important;}
 .taro-header p{font-size:0.7rem;margin-top:0.1rem;}
 .taro-main{justify-content:center !important;}
-.taro-table-wrap{transform:translateY(clamp(-8vh, -6vh, -3vh)) !important;}
+.taro-table-wrap{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;}
 .taro-table{min-height:150px;padding:0.25rem;margin:calc(var(--pad) * 0.1) 0 !important;}
 .card-slot{width:var(--card-w);height:var(--card-h);}
 .taro-card{width:var(--card-w);height:var(--card-h);}
@@ -2203,14 +2464,14 @@ to{transform:translateY(0);opacity:1;}
 .taro-card{width:var(--card-w) !important;height:var(--card-h) !important;}
 .taro-table{padding:0.15rem !important;min-height:120px !important;}
 .taro-main{min-height:300px !important;justify-content:center !important;}
-.taro-table-wrap{transform:translateY(clamp(-6vh, -4vh, -2vh)) !important;}
+.taro-table-wrap{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;}
 .taro-table{margin:calc(var(--pad) * 0.05) 0 !important;}
 }
 @media (max-height:500px) and (orientation:landscape){.control-buttons{top:calc(5px + var(--safe-area-inset-top,0)) !important;}
 .taro-header h1{font-size:1.6rem !important;top:calc(8px + var(--safe-area-inset-top,0)) !important;left:0 !important;right:0 !important;width:100% !important;display:block !important;text-align:center !important;}
 .taro-container{padding-top:calc(var(--pad) + 35px + var(--safe-area-inset-top,0)) !important;}
 .taro-main{justify-content:center !important;}
-.taro-table-wrap{transform:translateY(-2vh) !important;}
+.taro-table-wrap{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;}
 .taro-table{min-height:100px !important;}
 }
 [data-debug="1"] *{outline:1px solid rgba(255,0,0,0.3) !important;}
@@ -2430,7 +2691,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
     box-shadow:none !important;
   }
   .taro-table-wrap{
-    transform:translateY(clamp(-6vh, -4vh, -2vh)) !important;
+    transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;
   }
 }
 @media (max-width:420px){
