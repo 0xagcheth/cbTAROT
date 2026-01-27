@@ -1486,9 +1486,9 @@ Important: This must be a unique interpretation for this specific card spread. M
         const customWindowVisible = showCustomModal || showCustomInline;
 
         useEffect(() => {
-          if (!customWindowVisible) return;
+          if (!customWindowVisible || !showCustomModal) return;
           restoreQuestionFocus();
-        }, [userQuestion, customWindowVisible, restoreQuestionFocus]);
+        }, [userQuestion, customWindowVisible, showCustomModal, restoreQuestionFocus]);
 
         const CustomQuestionWindow=({ mode="modal", visible=true }) => {
           const isInline=mode === "inline";
@@ -1497,13 +1497,13 @@ Important: This must be a unique interpretation for this specific card spread. M
               className={`custom-reading-container ${isInline ? "custom-reading-inline-wrap" : ""}`}
               style={{
                 visibility: visible ? "visible" : "hidden",
-                pointerEvents: visible ? "auto" : "none",
+                pointerEvents: visible ? (isInline ? "none" : "auto") : "none",
                 opacity: visible ? 1 : 0,
                 transition: "opacity 160ms ease"
               }}
               aria-hidden={!visible}
             >
-              <div className={`taro-modal custom-reading-modal ${isInline ? "custom-reading-inline" : ""}`}>
+              <div className={`taro-modal custom-reading-modal ${isInline ? "custom-reading-inline" : ""}`} style={isInline ? {pointerEvents: "auto"} : {}}>
               <div className="custom-modal-content">
                 <div className="custom-modal-prompt">✧ What would you like to know? ✧</div>
                 <textarea
@@ -1579,7 +1579,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                   autoComplete="off"
                   autoCorrect="on"
                   autoCapitalize="none"
-                  autoFocus
+                  autoFocus={!isInline}
                   rows={4}
                   maxLength={500}
                 />
@@ -1703,7 +1703,15 @@ Important: This must be a unique interpretation for this specific card spread. M
                             <button
                               className="orb-oracle-hit"
                               disabled={oracleBusy}
-                              onClick={triggerOracle}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                triggerOracle();
+                              }}
+                              onTouchEnd={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
                               aria-label="Ask the oracle"
                             />
                             <div className={`orb-oracle-text ${oracleVisible ? "visible" : ""}`}>
@@ -2304,7 +2312,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   transition:transform 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);
 }
 .taro-table-centered{
-  transform:translateY(-100px);
+  transform:translateY(-150px);
   margin:0 auto;
   min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));
   display:flex;
@@ -2335,7 +2343,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-table::after{content:"";position:absolute;inset:22% 10% 6%;background:radial-gradient(ellipse at 50% 120%,rgba(0,123,255,0.28),rgba(0,123,255,0.12) 38%,transparent 62%);filter:blur(18px);opacity:0.9;pointer-events:none;z-index:0;}
 .taro-table-content{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;pointer-events:none;overflow:visible;}
 .taro-table-center{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);width:min(40vw,320px);max-width:320px;height:auto;pointer-events:none !important;user-select:none;z-index:3;opacity:0.95;filter:none;}
-.orb-container{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);width:min(40vw,320px);max-width:320px;height:auto;pointer-events:auto;z-index:2;}
+.orb-container{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);width:min(40vw,320px);max-width:320px;height:auto;pointer-events:auto;z-index:10;}
 #orbWrap{--fog-tx:0px;--fog-ty:0px;--mist-dx-a:0px;--mist-dy-a:0px;--mist-dx-b:0px;--mist-dy-b:0px;--mist-dx-c:0px;--mist-dy-c:0px;}
 .ball-mist-wrap{position:absolute;left:50%;top:50%;width:min(88%,460px);aspect-ratio:1/1;transform:translate(-50%,-54%) translateY(-22px);border-radius:9999px;overflow:hidden;clip-path:circle(50% at 50% 50%);-webkit-mask-image:radial-gradient(circle, #000 74%, transparent 78%);mask-image:radial-gradient(circle, #000 74%, transparent 78%);z-index:1;pointer-events:none;isolation:isolate;background:radial-gradient(circle at 50% 60%,rgba(8,10,24,0.82) 0%,rgba(3,5,14,0.92) 70%,rgba(1,2,6,0.96) 100%);box-shadow:0 0 30px rgba(103,125,255,0.18),0 0 60px rgba(54,78,180,0.12);}
 .mist-defs{position:absolute;inset:0;pointer-events:none;}
@@ -2345,7 +2353,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .orb-sparkles{display:none;}
 .orb-image{position:relative;width:100%;height:auto;pointer-events:none;user-select:none;z-index:2;}
 .orb-oracle-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:3;transform:translateY(-35px);}
-.orb-oracle-hit{position:absolute;width:96%;aspect-ratio:1/1;border-radius:50%;border:1px solid rgba(255,255,255,0.08);background:radial-gradient(circle at 50% 50%,rgba(120,160,255,0.08) 0%,rgba(80,120,200,0.05) 35%,rgba(0,0,0,0) 70%);box-shadow:0 0 25px rgba(120,160,255,0.12),0 0 55px rgba(50,80,180,0.08);pointer-events:auto;cursor:pointer;transition:transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;}
+.orb-oracle-hit{position:absolute;width:96%;aspect-ratio:1/1;border-radius:50%;border:1px solid rgba(255,255,255,0.08);background:radial-gradient(circle at 50% 50%,rgba(120,160,255,0.08) 0%,rgba(80,120,200,0.05) 35%,rgba(0,0,0,0) 70%);box-shadow:0 0 25px rgba(120,160,255,0.12),0 0 55px rgba(50,80,180,0.08);pointer-events:auto;cursor:pointer;transition:transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 .orb-oracle-hit:hover{transform:scale(1.03);border-color:rgba(255,255,255,0.18);box-shadow:0 0 30px rgba(160,200,255,0.16),0 0 70px rgba(80,140,255,0.12);}
 .orb-oracle-hit:disabled{cursor:wait;filter:saturate(0.7);opacity:0.7;}
 .orb-oracle-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transform:scale(0.92);transition:opacity 0.7s ease-in-out, transform 0.7s ease-in-out;font-family:'Georgia','Times New Roman',serif;font-weight:600;font-size:clamp(18px,4vw,28px);color:rgba(255,255,255,0.5);text-shadow:0 0 10px rgba(140,180,255,0.65),0 0 18px rgba(80,140,255,0.32),0 0 24px rgba(0,0,0,0.32);letter-spacing:0.12em;}
@@ -2392,7 +2400,7 @@ to{transform:rotate(360deg);}
 }
 .modal-header h2{margin:0;flex:1;text-align:center;}
 .custom-modal-content{display:flex;flex-direction:column;align-items:center;gap:clamp(24px,6vw,40px);max-width:500px;width:100%;box-sizing:border-box;}
-.custom-reading-inline-wrap{width:100%;display:flex;justify-content:center;align-items:flex-start;margin-top:clamp(-36px,-6vh,8px);padding:0 var(--pad);box-sizing:border-box;position:relative;z-index:5;}
+.custom-reading-inline-wrap{width:100%;display:flex;justify-content:center;align-items:flex-start;margin-top:clamp(-36px,-6vh,8px);padding:0 var(--pad);box-sizing:border-box;position:relative;z-index:1;}
 .custom-reading-inline{position:static !important;transform:none !important;margin:0 auto;width:min(640px,95vw);max-width:640px;padding:clamp(1.25rem,4vw,2rem);box-shadow:0 0 40px rgba(0,123,255,0.25),0 0 80px rgba(0,123,255,0.1);}
 .custom-reading-inline .custom-modal-input{min-height:112px;}
 .custom-modal-title{width:100%;text-align:center;margin:0;}
@@ -2602,7 +2610,7 @@ to{transform:translateY(0);opacity:1;}
 .taro-header p{font-size:0.7rem;margin-top:0.1rem;}
 .taro-main{justify-content:center !important;}
 .taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:translateY(-100px) !important;margin:clamp(10px,6vh,48px) auto !important;}
+.taro-table-centered{transform:translateY(-150px) !important;margin:clamp(10px,6vh,48px) auto !important;}
 .taro-table{min-height:150px;padding:0.25rem;margin:calc(var(--pad) * 0.1) 0 !important;box-shadow:0 22px 70px rgba(0,123,255,0.38),0 10px 28px rgba(0,123,255,0.22),inset 0 0 24px rgba(255,255,255,0.05) !important;}
 .taro-table::after{inset:24% 12% 8%;filter:blur(16px);}
 .card-slot{width:var(--card-w);height:var(--card-h);}
@@ -2646,7 +2654,7 @@ to{transform:translateY(0);opacity:1;}
 .taro-table{padding:0.15rem !important;min-height:120px !important;}
 .taro-main{min-height:300px !important;justify-content:center !important;}
 .taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:translateY(-100px) !important;margin:clamp(10px,6vh,40px) auto !important;}
+.taro-table-centered{transform:translateY(-150px) !important;margin:clamp(10px,6vh,40px) auto !important;}
 .taro-table{margin:calc(var(--pad) * 0.05) 0 !important;}
 }
 @media (max-height:500px) and (orientation:landscape){.control-buttons{top:calc(5px + var(--safe-area-inset-top,0)) !important;}
@@ -2654,7 +2662,7 @@ to{transform:translateY(0);opacity:1;}
 .taro-container{padding-top:calc(var(--pad) + 35px + var(--safe-area-inset-top,0)) !important;}
 .taro-main{justify-content:center !important;}
 .taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:translateY(-100px) !important;margin:clamp(8px,5vh,36px) auto !important;}
+.taro-table-centered{transform:translateY(-150px) !important;margin:clamp(8px,5vh,36px) auto !important;}
 .taro-table{min-height:100px !important;}
 }
 [data-debug="1"] *{outline:1px solid rgba(255,0,0,0.3) !important;}
@@ -2881,7 +2889,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
     transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;
   }
   .taro-table-centered{
-    transform:translateY(-100px) !important;
+    transform:translateY(-150px) !important;
   }
 }
 @media (max-width:420px){
