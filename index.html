@@ -421,18 +421,32 @@
           isMainScreenRef.current=isMainScreen;
         }, [isMainScreen]);
 
-        const handleQuestionBlur=useCallback(() => {
+        const lastQuestionCaretRef=useRef(null);
+
+        const shouldKeepQuestionFocus=useCallback(() => {
+          const isMobile=typeof window!=="undefined" && window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+          return isMobile && ((gameStage==="custom") || (gameStage==="idle" && !showGallery));
+        }, [gameStage, showGallery]);
+
+        const restoreQuestionFocus=useCallback(() => {
           const inputEl=questionInputRef.current;
           if (!inputEl) return;
-          const isMobile = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
-          const shouldKeepFocus = (gameStage === "custom") || (gameStage === "idle" && !showGallery);
-          if (!isMobile || !shouldKeepFocus) return;
-          setTimeout(() => {
+          if (!shouldKeepQuestionFocus()) return;
+          const pos=Math.min(inputEl.value?.length ?? 0, Math.max(0, lastQuestionCaretRef.current ?? (inputEl.value?.length ?? 0)));
+          requestAnimationFrame(() => {
             if (document.activeElement !== inputEl) {
-              inputEl.focus({ preventScroll: true });
+              inputEl.focus({ preventScroll:true });
             }
-          }, 0);
-        }, [gameStage, showGallery]);
+            if (typeof inputEl.setSelectionRange === "function") {
+              try { inputEl.setSelectionRange(pos, pos); } catch {}
+            }
+          });
+        }, [shouldKeepQuestionFocus]);
+
+        const handleQuestionBlur=useCallback((e) => {
+          if (e?.stopPropagation) e.stopPropagation();
+          setTimeout(restoreQuestionFocus, 0);
+        }, [restoreQuestionFocus]);
 
         const triggerOracle=useCallback(() => {
           if (oracleBusyRef.current || !isMainScreenRef.current) return;
@@ -1387,6 +1401,12 @@ Important: This must be a unique interpretation for this specific card spread. M
           setGameStage("choosing");
         };
 
+        // keep focus after rerenders on mobile (without forcing caret)
+        useEffect(() => {
+          const isMobile=typeof window!=="undefined" && window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+          if(!isMobile) return;
+        }, [userQuestion]);
+
         // --- SHARE (Compose Cast) ---
         const APP_URL = "https://0xagcheth.github.io/cbTARO/";
 
@@ -1441,25 +1461,25 @@ Important: This must be a unique interpretation for this specific card spread. M
                 <div className="custom-modal-prompt">✧ What would you like to know? ✧</div>
                 <textarea
                   className="custom-modal-input"
+                  dir="ltr"
                   ref={questionInputRef}
                   placeholder="Enter your question here..."
                   value={userQuestion}
                   onChange={(e) => {
                     const val=e.target.value.substring(0,500);
+                    lastQuestionCaretRef.current=e.target?.selectionEnd ?? val.length;
                     setUserQuestion(val);
                   }}
-                  onFocus={(e) => e.stopPropagation()}
-                  onBlur={handleQuestionBlur}
+                  onFocus={(e) => { e.stopPropagation(); lastQuestionCaretRef.current=e.target?.selectionEnd ?? (e.target?.value?.length ?? 0); restoreQuestionFocus(); }}
                   onClick={(e) => e.stopPropagation()}
-                  onInput={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  onKeyUp={(e) => e.stopPropagation()}
-                  onKeyPress={(e) => e.stopPropagation()}
+                  onInput={(e) => { e.stopPropagation(); lastQuestionCaretRef.current=e.target?.selectionEnd ?? (e.target?.value?.length ?? 0); }}
+                  onBlur={handleQuestionBlur}
                   onMouseDown={(e) => e.stopPropagation()}
                   onMouseUp={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                   onTouchEnd={(e) => e.stopPropagation()}
                   inputMode="text"
+                  enterKeyHint="done"
                   autoComplete="off"
                   autoCorrect="on"
                   autoCapitalize="sentences"
@@ -2178,7 +2198,8 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-table-wrap{position:relative;transform:translateY(clamp(-6vh, -4vh, -1vh));transform-origin:center center;will-change:transform;}
 .get-reading-container{position:absolute;left:50%;bottom:clamp(10px,3vh,28px);transform:translateX(-50%);display:flex;justify-content:center;align-items:center;gap:10px;width:auto;z-index:200;}
 .get-reading-on-table{pointer-events:auto;}
-.taro-table{position:relative;width:var(--tableW);aspect-ratio:var(--tableAR);background:rgba(255,255,255,0.05);border-radius:50%;border:1px solid rgba(255,255,255,0.3);box-shadow:0 0 80px rgba(0,123,255,0.4),0 0 160px rgba(0,123,255,0.2),inset 0 0 30px rgba(255,255,255,0.05);margin:calc(var(--pad) * 0.1) auto;transition:box-shadow 0.3s ease;transform-origin:center center;transform:translateZ(0);overflow:visible;min-width:var(--tableW);max-width:var(--tableW);flex-shrink:0;will-change:transform;}
+.taro-table{position:relative;width:var(--tableW);aspect-ratio:var(--tableAR);background:rgba(255,255,255,0.05);border-radius:50%;border:1px solid rgba(255,255,255,0.3);box-shadow:0 32px 90px rgba(0,123,255,0.45),0 12px 36px rgba(0,123,255,0.28),inset 0 0 30px rgba(255,255,255,0.05);margin:calc(var(--pad) * 0.1) auto;transition:box-shadow 0.3s ease;transform-origin:center center;transform:translateZ(0);overflow:visible;min-width:var(--tableW);max-width:var(--tableW);flex-shrink:0;will-change:transform;}
+.taro-table::after{content:"";position:absolute;inset:22% 10% 6%;background:radial-gradient(ellipse at 50% 120%,rgba(0,123,255,0.28),rgba(0,123,255,0.12) 38%,transparent 62%);filter:blur(18px);opacity:0.9;pointer-events:none;z-index:0;}
 .taro-table-content{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;justify-content:center;align-items:center;pointer-events:none;overflow:visible;}
 .taro-table-center{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);width:min(40vw,320px);max-width:320px;height:auto;pointer-events:none !important;user-select:none;z-index:3;opacity:0.95;filter:none;}
 .orb-container{position:absolute;top:36%;left:50%;transform:translate(-50%,-50%);width:min(40vw,320px);max-width:320px;height:auto;pointer-events:auto;z-index:2;}
@@ -2548,6 +2569,10 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 .choosing-modal .custom-reading-overlay-button img{width:100% !important;height:100% !important;object-fit:cover !important;display:block !important;position:absolute !important;top:0 !important;left:0 !important;border-radius:inherit !important;}
 .choosing-modal .custom-reading-overlay-button:hover:not(:disabled){transform:translateY(-1px) !important;box-shadow:0 6px 16px rgba(0,123,255,0.4) !important;}
 @media (max-width:768px){.taro-table-content .taro-modal.choosing-modal{position:absolute !important;left:50% !important;top:calc(50% - 200px) !important;transform:translate(-50%,-50%) !important;width:clamp(280px,min(460px,calc(var(--tableW) * 0.85)),95vw) !important;max-width:calc(var(--tableW) * 0.9) !important;aspect-ratio:1 / 0.375 !important;max-height:none !important;overflow:visible !important;margin:0 !important;}
+@media (max-width:768px){
+  .taro-table{box-shadow:0 26px 70px rgba(0,123,255,0.42),0 10px 28px rgba(0,123,255,0.24),inset 0 0 26px rgba(255,255,255,0.05);}
+  .taro-table::after{inset:26% 12% 8%;filter:blur(14px);}
+}
 .choosing-modal .preview-card,.choosing-modal .single-preview-card,.choosing-modal .three-preview-card,.choosing-modal .preview-card-inner{width:calc(var(--card-w) * 1.219) !important;height:calc(var(--card-h) * 1.219) !important;}
 .choosing-modal .spread-preview{min-height:calc((var(--card-h) * 1.219 + 8px)) !important;width:100% !important;overflow:visible !important;}
 .choosing-modal .custom-reading-overlay-button{width:227px !important;height:71px !important;}
