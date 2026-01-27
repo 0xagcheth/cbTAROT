@@ -1549,6 +1549,22 @@ Important: This must be a unique interpretation for this specific card spread. M
                   onMouseUp={(e) => e.stopPropagation()}
                   onTouchStart={(e) => e.stopPropagation()}
                   onTouchEnd={(e) => e.stopPropagation()}
+                  onBlur={(e) => {
+                    if (isComposingRef.current) return;
+                    if (!shouldKeepQuestionFocus()) return;
+                    requestAnimationFrame(() => {
+                      const el=questionInputRef.current;
+                      const len=el?.value?.length ?? 0;
+                      lastQuestionCaretRef.current=len;
+                      if (!el) return;
+                      if (document.activeElement !== el) {
+                        el.focus({ preventScroll:true });
+                      }
+                      if (typeof el.setSelectionRange === "function") {
+                        try { el.setSelectionRange(len, len); } catch {}
+                      }
+                    });
+                  }}
                   inputMode="text"
                   enterKeyHint="done"
                   autoComplete="off"
