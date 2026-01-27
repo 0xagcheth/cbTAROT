@@ -1638,6 +1638,17 @@ Important: This must be a unique interpretation for this specific card spread. M
 
                 <div className={`taro-table-wrap ${gameStage === "idle" ? "taro-table-top" : "taro-table-centered"}`}>
                   <div className={`taro-table ${gameStage === "animating" ? "table-animating" : ""}`}>
+                    {gameStage === "choosing" && (
+                      <div className="choosing-back-at-table" aria-hidden="true">
+                        <button
+                          className="taro-button secondary"
+                          onClick={() => { playButtonSound(); setGameStage("idle"); }}
+                          aria-label="Back"
+                        >
+                          &lt;
+                        </button>
+                      </div>
+                    )}
                     <div className="taro-table-content">
                       {isMainScreen && (
                         <div className="orb-container" id="orbWrap">
@@ -1936,16 +1947,6 @@ Important: This must be a unique interpretation for this specific card spread. M
 
                 <CustomQuestionWindow mode={customWindowMode} visible={customWindowVisible} />
 
-            {gameStage === "choosing" && (
-              <div className="choosing-back-footer">
-                <button
-                  className="taro-button secondary"
-                  onClick={() => { playButtonSound(); setGameStage("idle"); }}
-                >
-                  &lt;
-                </button>
-              </div>
-            )}
 
                 {gameStage === "animating" && (
                   <div className="taro-animating">
@@ -2444,6 +2445,7 @@ to{transform:rotate(360deg);}
 .custom-reading-get-button{width:auto;height:auto;padding:0.6rem 2rem;gap:0.35rem;}
 .custom-reading-get-text{position:relative;z-index:1;color:rgba(255,255,255,0.85);font-family:inherit;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;font-weight:300;}
 .choosing-back-footer{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:12px;z-index:50;}
+.choosing-back-at-table{position:absolute;left:50%;bottom:clamp(6px,1.5vw,14px);transform:translateX(-50%);z-index:110;pointer-events:auto;display:flex;justify-content:center;align-items:center;}
 .taro-custom-modal{max-width:500px;width:90%;}
 .spread-selection{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:0.5rem clamp(0.75rem,2vw,1.5rem);margin:calc(var(--pad) * 0.25) 0;justify-items:center;align-items:center;max-width:100%;}
 @media (max-width:768px){.spread-selection{gap:calc(var(--pad) * 0.25);margin:calc(var(--pad) * 0.125) 0;}
