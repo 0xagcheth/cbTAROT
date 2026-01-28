@@ -933,47 +933,6 @@
           }
         }
 
-        async function waitReceipt(provider, txHash, maxMs = 90000) {
-          setPaymentStep("receipt");
-          console.log("PAY: Waiting for transaction confirmation...");
-          
-          const start = Date.now();
-          let attempts = 0;
-          
-          while (Date.now() - start < maxMs) {
-            attempts++;
-            try {
-              const receipt = await provider.request({
-                method: "eth_getTransactionReceipt",
-                params: [txHash],
-              });
-              
-              if (receipt) {
-                console.log("PAY: Receipt received after", attempts, "attempts");
-                console.log("PAY: Receipt data:", {
-                  blockNumber: String(receipt.blockNumber || ''),
-                  transactionHash: String(receipt.transactionHash || ''),
-                  status: String(receipt.status || '')
-                });
-                
-                // Check transaction status
-                if (receipt.status && receipt.status !== "0x1") {
-                  throw new Error("Transaction failed on-chain");
-                }
-                
-                return receipt;
-              }
-            } catch (e) {
-              if (e.message && e.message.includes("failed on-chain")) throw e;
-              console.warn("PAY: Receipt check attempt", attempts, "failed:", e?.message || String(e));
-            }
-            
-            await new Promise(r => setTimeout(r, 2000)); // Check every 2 seconds
-          }
-          
-          throw new Error("Transaction confirmation timeout. Check your wallet.");
-        }
-
         async function connectWallet() {
           setWalletError("");
           setIsConnecting(true);
@@ -1283,7 +1242,7 @@ Important: This must be a unique interpretation for this specific card spread. M
           setAiInterpretation(null);
           setShowAiPanel(false);
 
-          if (spread === "ONE" || spread === "THREE" || spread === "CUSTOM") {
+          if (spread === "THREE") {
             try {
               await startSpreadAnimation(spread);
             } catch (e) {
@@ -1318,12 +1277,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                   positionLabel: idx === 0 ? "Today's Energy" : idx === 1 ? "Support" : "Challenge",
                 }));
                 setCards(labeled);
-              } else if (spread === "CUSTOM") {
-                const labeled=newCards.map((card, idx) => ({
-                  ...card,
-                  positionLabel: idx === 0 ? "Past/Foundation" : idx === 1 ? "Present/Situation" : "Future/Guidance",
-                }));
-                setCards(labeled);
               } else {
                 setCards(newCards);
               }
@@ -1336,7 +1289,7 @@ Important: This must be a unique interpretation for this specific card spread. M
           } catch (err) {
             console.error("Error:", err);
             setIsLoading(false);
-            setGameStage(spread === "CUSTOM" ? "custom" : "idle");
+            setGameStage("idle");
           }
         };
 
@@ -1353,7 +1306,7 @@ Important: This must be a unique interpretation for this specific card spread. M
               question = "Three-card reading";
             }
           }
-          const allowAi = selectedSpread === "CUSTOM" || selectedSpread === "THREE";
+          const allowAi = selectedSpread === "THREE";
           if (allowAi && allRevealed && !aiInterpretation && question && question.length >= 3) {
             setIsGeneratingAI(true);
             try {
@@ -1390,17 +1343,7 @@ Important: This must be a unique interpretation for this specific card spread. M
             return;
           }
 
-          setRevealedIds((prev) => {
-            const newRevealedIds=[...prev, card.id];
-            const question=(userQuestion || '').trim();
-            // Auto-generate for CUSTOM when question is valid
-            if (selectedSpread === "CUSTOM" && Array.isArray(cards) && cards.length > 0 && newRevealedIds.length === cards.length && question && question.length>=3) {
-              setTimeout(() => {
-                generateCustomInterpretation(newRevealedIds);
-              }, 1000);
-            }
-            return newRevealedIds;
-          });
+          setRevealedIds((prev) => [...prev, card.id]);
           setActiveCard(card);
           setGameStage("reading");
         };
@@ -1767,7 +1710,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                   </div>
                 </div>
 
-                {isAllRevealed && (selectedSpread === "THREE" || selectedSpread === "CUSTOM") && (
+                {isAllRevealed && selectedSpread === "THREE" && (
                   <div className="get-reading-container get-reading-on-table get-reading-below-table">
                     {!aiInterpretation && !isGeneratingAI && (
                       <button
@@ -1777,12 +1720,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                           playButtonSound();
                           const questionRaw=(userQuestion || '').trim();
                           const hasQuestion=questionRaw && questionRaw.length>=3;
-                          const finalQuestion=hasQuestion ? questionRaw : (selectedSpread === "THREE" ? "Three-card reading" : "");
-                          if (selectedSpread === "CUSTOM" && !finalQuestion) {
-                            alert('Please enter your question first (at least 3 characters).');
-                            setGameStage("custom");
-                            return;
-                          }
+                          const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
                           try {
                             await pay(PRICE_READING);
                             await generateCustomInterpretation(revealedIds, finalQuestion);
@@ -1790,7 +1728,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                             console.error("Get Reading payment or generation failed:", err);
                           }
                         }}
-                        disabled={isGeneratingAI || isPaying || (selectedSpread === "CUSTOM" && (!userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3))}
+                        disabled={isGeneratingAI || isPaying}
                         aria-label="Get Reading"
                       >
                         <span className="custom-reading-get-text">Get Reading</span>
@@ -1973,7 +1911,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                 </div>
               )}
 
-              {(selectedSpread === "CUSTOM" || selectedSpread === "THREE") && isAllRevealed && aiInterpretation && showAiPanel && (
+              {selectedSpread === "THREE" && isAllRevealed && aiInterpretation && showAiPanel && (
                 <div className="taro-reading-overlay" onClick={() => setShowAiPanel(false)}>
                   <div className="taro-reading-panel taro-ai-panel" onClick={(e) => e.stopPropagation()}>
                     <h2 className="taro-ai-title">✧ Your Personalized Reading ✧</h2>
@@ -2229,9 +2167,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-deck-inner{width:100%;height:100%;background:linear-gradient(135deg,#2d1b3d 0%,#1a0a2e 100%);background-image:var(--cardback-url,url('./Assets/imagine/bc.png'));background-size:100% 100%;background-position:center;background-repeat:no-repeat;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.5),inset 0 0 20px rgba(0,123,255,0.3);border:2px solid rgba(0,123,255,0.5);position:relative;}
 .taro-modal{background:rgba(0,0,0,0.7);backdrop-filter:blur(10px);border-radius:15px;padding:0.75rem;text-align:center;max-height:85vh;border:2px solid rgba(0,123,255,0.5);box-shadow:0 0 40px rgba(0,123,255,0.4);max-width:100%;overflow:hidden;}
 .taro-main > .taro-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;}
-.taro-table-content .choosing-modal,.taro-table-content .custom-reading-modal{position:absolute !important;left:50% !important;top:50% !important;transform:translate(-50%,-50%) !important;width:clamp(280px,min(480px,calc(var(--tableW) * 0.85)),90vw) !important;max-width:calc(var(--tableW) * 0.9) !important;z-index:100 !important;pointer-events:auto !important;margin:0 !important;box-sizing:border-box;}
-.choosing-modal{background:linear-gradient(135deg,rgba(0,123,255,0.05),rgba(0,50,150,0.05),rgba(0,123,255,0.03)
- );backdrop-filter:none;-webkit-backdrop-filter:none;border:none;box-shadow:none;border-radius:20px;padding:1rem;}
+.taro-table-content .custom-reading-modal{position:absolute !important;left:50% !important;top:50% !important;transform:translate(-50%,-50%) !important;width:clamp(280px,min(480px,calc(var(--tableW) * 0.85)),90vw) !important;max-width:calc(var(--tableW) * 0.9) !important;z-index:100 !important;pointer-events:auto !important;margin:0 !important;box-sizing:border-box;}
 .custom-reading-modal{background:linear-gradient(135deg,rgba(0,123,255,0.15),rgba(0,50,150,0.15),rgba(0,123,255,0.1)
  );backdrop-filter:blur(25px);-webkit-backdrop-filter:blur(25px);border:1px solid rgba(255,255,255,0.2);box-shadow:0 8px 32px rgba(0,123,255,0.3),inset 0 1px 0 rgba(255,255,255,0.1),inset 0 -1px 0 rgba(0,0,0,0.1);border-radius:20px;padding:2rem;}
 .modal-header{display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:1.5rem;}
@@ -2314,34 +2250,7 @@ to{transform:rotate(360deg);}
 .custom-reading-underlay-image{display:none;}
 .custom-reading-get-button{width:auto;height:auto;padding:0.6rem 2rem;gap:0.35rem;}
 .custom-reading-get-text{position:relative;z-index:1;color:rgba(255,255,255,0.85);font-family:inherit;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;font-weight:300;}
-.choosing-back-footer{display:flex;justify-content:center;align-items:center;gap:12px;margin-top:12px;z-index:50;}
-.choosing-back-at-table{position:absolute;left:50%;bottom:clamp(6px,1.5vw,14px);transform:translateX(-50%);z-index:110;pointer-events:auto;display:flex;justify-content:center;align-items:center;}
 .taro-custom-modal{max-width:500px;width:90%;}
-.spread-selection{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:0.5rem clamp(0.75rem,2vw,1.5rem);margin:calc(var(--pad) * 0.25) 0;justify-items:center;align-items:center;max-width:100%;}
-@media (max-width:768px){.spread-selection{gap:calc(var(--pad) * 0.25);margin:calc(var(--pad) * 0.125) 0;}
-.spread-option{width:100%;max-width:160px;}
-}
-.spread-option{display:flex;flex-direction:column;align-items:center;transition:opacity 0.3s ease;cursor:pointer;transform:scale(0.75);}
-.single-card-option{grid-column:1;grid-row:1;transform:translateX(20px);}
-.three-cards-option{grid-column:2;grid-row:1;transform:translateX(-20px);}
-.custom-reading-button{grid-column:1 / -1;grid-row:2;justify-self:center;}
-.spread-preview{display:flex;justify-content:center;align-items:center;margin-bottom:1rem;position:relative;}
-.preview-card{width:var(--card-w);height:var(--card-h);position:relative;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.3);transition:transform 0.3s ease;}
-.preview-card-inner{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform 0.6s ease;}
-.preview-card-back,.preview-card-front{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:8px;}
-.preview-card-back{background-image:var(--cardback-url,url('./Assets/imagine/bc.png'));background-size:140% 140%;background-position:center;background-repeat:no-repeat;border:1px solid rgba(138,43,226,0.3);}
-.preview-card-front{background:rgba(245,245,220,0.9);transform:rotateY(180deg);border:1px solid rgba(138,43,226,0.2);display:flex;align-items:center;justify-content:center;overflow:hidden;}
-.preview-card-image{width:100%;height:100%;object-fit:fill;border-radius:6px;}
-.three-preview-card{position:absolute;}
-.left-card{transform:rotate(-15deg) translateX(-30px);z-index:1;}
-.center-card{z-index:2;}
-.right-card{transform:rotate(15deg) translateX(30px);z-index:1;}
-.choosing-modal .preview-card,.choosing-modal .single-preview-card,.choosing-modal .three-preview-card,.choosing-modal .preview-card-inner{width:var(--card-w) !important;height:var(--card-h) !important;border-radius:8px !important;}
-.choosing-modal .preview-card{border:1px solid rgba(255,255,255,0.2) !important;box-shadow:0 4px 16px rgba(0,123,255,0.3),inset 0 1px 0 rgba(255,255,255,0.1) !important;}
-.choosing-modal .three-preview-card.left-card{transform:rotate(-10deg) translateX(-18px) !important;}
-.choosing-modal .three-preview-card.right-card{transform:rotate(10deg) translateX(18px) !important;}
-.choosing-modal .three-preview-card.center-card{z-index:2 !important;}
-.custom-reading-button{margin-top:1rem;width:100%;}
 .taro-custom-hint{color:rgba(255,255,255,0.8);font-size:1rem;margin-bottom:0.5rem;font-style:italic;}
 .taro-custom-note{color:rgba(255,215,0,0.8);font-size:0.9rem;margin-bottom:1rem;font-weight:500;}
 .taro-question-input{width:100%;padding:1rem;font-size:1rem;font-family:inherit;background:rgba(255,255,255,0.1);border:2px solid rgba(0,123,255,0.5);border-radius:12px;color:#fff;resize:vertical;margin-bottom:1.5rem;transition:all 0.3s ease;}
@@ -2475,8 +2384,6 @@ to{transform:translateY(0);opacity:1;}
 .card-slot{width:var(--card-w);height:var(--card-h);}
 .taro-card{width:var(--card-w);height:var(--card-h);}
 .taro-spread{gap:0.5rem;}
-.three-preview-card.left-card{transform:rotate(-8deg) translateX(-8px);}
-.three-preview-card.right-card{transform:rotate(8deg) translateX(8px);}
 .taro-reading-panel{padding:1.5rem 1rem !important;max-height:85vh !important;min-height:auto !important;}
 .taro-reading-overlay{transform:none !important;scale:1 !important;}
 .taro-reading-panel{transform:none !important;scale:1 !important;}
@@ -2491,7 +2398,6 @@ to{transform:translateY(0);opacity:1;}
 .taro-reading-text{font-size:0.8rem !important;margin:0 !important;line-height:1.7 !important;padding:0 !important;max-width:95% !important;}
 .taro-reading-close-btn{font-size:0.7rem !important;padding:0.5rem 1.5rem !important;margin-top:2rem !important;}
 .taro-modal{padding:0.5rem;}
-.choosing-modal{padding:0.75rem;}
 .custom-reading-modal{padding:1.5rem;}
 .modal-header h2{font-size:1.5rem;}
 .modal-bottom-buttons{gap:12px;margin-top:12px;}
@@ -2530,7 +2436,6 @@ to{transform:translateY(0);opacity:1;}
 [data-debug="1"] .taro-modal,[data-debug="1"] .taro-reading-overlay{outline:3px solid purple !important;background:rgba(128,0,128,0.1) !important;}
 [data-debug="1"] .taro-table{outline:2px solid blue !important;}
 [data-debug="1"] .taro-card{outline:1px solid green !important;}
-[data-debug="1"] .single-card-option,[data-debug="1"] .three-cards-option{outline:2px solid yellow !important;background:rgba(255,255,0,0.1) !important;}
 [data-debug="1"] .taro-button{outline:1px solid cyan !important;}
 [data-debug="1"]::after{content:"Viewport:" attr(data-viewport) " | DEBUG MODE";position:fixed;top:10px;right:10px;background:rgba(255,0,0,0.9);color:white;padding:5px 10px;border-radius:4px;font-size:12px;z-index:9999;border:2px solid white;}
 .icon-btn{width:44px;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,0.18);background:rgba(20,40,80,0.35);color:#fff;cursor:pointer;display:grid;place-items:center;}
@@ -2554,45 +2459,9 @@ to{transform:translateY(0);opacity:1;}
 body{overflow-x:hidden !important;}
 button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-toggle-btn,.gallery-button,.custom-modal-btn,.taro-reading-close-btn,.gallery-close-btn,.custom-reading-overlay-button,.taro-option,.icon-btn{touch-action:manipulation;}
 .taro-background{background-attachment:scroll !important;}
-.taro-main{min-height:unset !important;}
-.choosing-modal{overflow:visible !important;}
-.choosing-modal .spread-selection{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:clamp(6px,2vw,12px) !important;margin:calc(var(--pad) * 0.5) 0 !important;justify-items:center !important;align-items:center !important;}
-@media (max-width:768px){.choosing-modal .single-card-option,.choosing-modal .three-cards-option{transform:none !important;}
-}
-.choosing-modal .spread-preview{min-height:calc((var(--card-h) + 14px) * 0.5) !important;display:flex !important;justify-content:center !important;align-items:center !important;margin-bottom:0.5rem !important;}
-.choosing-modal .spread-option{opacity:1 !important;visibility:visible !important;display:block !important;}
-.taro-table-content .taro-modal.choosing-modal{position:absolute !important;left:50% !important;top:50% !important;transform:translate(-50%,-50%) !important;width:clamp(280px,min(480px,calc(var(--tableW) * 0.85)),90vw) !important;max-width:calc(var(--tableW) * 0.9) !important;aspect-ratio:1 / 0.35 !important;background:rgba(10,18,48,0.1) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border:none !important;border-radius:16px !important;box-shadow:none !important;padding:0 !important;display:flex !important;flex-direction:column !important;justify-content:center !important;align-items:center !important;margin:0 !important;z-index:100 !important;overflow:visible !important;}
-.choosing-modal .spread-selection{display:grid !important;grid-template-columns:repeat(2,1fr) !important;grid-template-rows:auto !important;gap:clamp(8px,2.5vw,16px) !important;width:100% !important;padding:clamp(10px,3vw,16px) clamp(16px,4vw,24px) 0 !important;margin:0 !important;justify-items:center !important;align-items:center !important;}
-.choosing-modal .single-card-option,.choosing-modal .three-cards-option{grid-column:auto !important;grid-row:auto !important;transform:none !important;width:100% !important;display:flex !important;justify-content:center !important;align-items:center !important;}
-.choosing-modal .preview-card,.choosing-modal .single-preview-card,.choosing-modal .three-preview-card,.choosing-modal .preview-card-inner{width:calc(var(--card-w) - 4px) !important;height:calc(var(--card-h) - 4px) !important;border-radius:8px !important;}
-.choosing-modal .preview-card{border:1px solid rgba(255,255,255,0.2) !important;box-shadow:0 4px 16px rgba(0,123,255,0.3),inset 0 1px 0 rgba(255,255,255,0.1) !important;}
-.choosing-modal .three-preview-card.left-card{transform:rotate(-10deg) translateX(-18px) !important;}
-.choosing-modal .three-preview-card.right-card{transform:rotate(10deg) translateX(18px) !important;}
-.choosing-modal .three-preview-card.center-card{z-index:2 !important;}
-.choosing-modal .spread-preview{min-height:calc((var(--card-h) + 8px) * 0.5) !important;width:100% !important;display:flex !important;justify-content:center !important;align-items:center !important;position:relative !important;}
-.choosing-modal .modal-bottom-buttons{display:flex !important;flex-direction:row !important;justify-content:center !important;align-items:center !important;gap:clamp(12px,4vw,20px) !important;width:100% !important;padding:clamp(8px,2vw,12px) clamp(16px,4vw,24px) clamp(10px,3vw,16px) !important;margin:clamp(-100px,-20vw,-70px) 0 0 0 !important;}
-.choosing-modal .modal-back-btn{display:none !important;}
-.choosing-modal .modal-back-btn:hover:not(:disabled){background:linear-gradient(135deg,rgba(0,123,255,1),rgba(0,50,150,1)) !important;transform:translateY(-1px) !important;box-shadow:0 6px 16px rgba(0,123,255,0.4) !important;}
-.choosing-modal .custom-reading-overlay-button{width:226px !important;height:70px !important;padding:0 !important;border-radius:8px !important;overflow:hidden !important;border:1px solid rgba(255,255,255,0.2) !important;box-shadow:0 4px 12px rgba(0,123,255,0.3) !important;transition:all 0.2s ease !important;}
-.choosing-modal .custom-reading-overlay-button img{width:100% !important;height:100% !important;object-fit:cover !important;display:block !important;position:absolute !important;top:0 !important;left:0 !important;border-radius:inherit !important;}
-.choosing-modal .custom-reading-overlay-button:hover:not(:disabled){transform:translateY(-1px) !important;box-shadow:0 6px 16px rgba(0,123,255,0.4) !important;}
-@media (max-width:768px){.taro-table-content .taro-modal.choosing-modal{position:absolute !important;left:50% !important;top:calc(50% - 200px) !important;transform:translate(-50%,-50%) !important;width:clamp(280px,min(460px,calc(var(--tableW) * 0.85)),95vw) !important;max-width:calc(var(--tableW) * 0.9) !important;aspect-ratio:1 / 0.375 !important;max-height:none !important;overflow:visible !important;margin:0 !important;}
 @media (max-width:768px){
   .taro-table{box-shadow:0 22px 70px rgba(0,123,255,0.38),0 10px 28px rgba(0,123,255,0.22),inset 0 0 24px rgba(255,255,255,0.05);}
   .taro-table::after{inset:24% 12% 8%;filter:blur(16px);}
-}
-.choosing-modal .preview-card,.choosing-modal .single-preview-card,.choosing-modal .three-preview-card,.choosing-modal .preview-card-inner{width:calc(var(--card-w) * 1.219) !important;height:calc(var(--card-h) * 1.219) !important;}
-.choosing-modal .spread-preview{min-height:calc((var(--card-h) * 1.219 + 8px)) !important;width:100% !important;overflow:visible !important;}
-.choosing-modal .custom-reading-overlay-button{width:227px !important;height:71px !important;}
-.choosing-modal .modal-back-btn{display:none !important;}
-.choosing-modal .modal-bottom-buttons{margin:clamp(-450px,-90vw,-750px) 0 0 0 !important;}
-}
-@media (max-width:480px){
-.choosing-modal .preview-card,.choosing-modal .single-preview-card,.choosing-modal .three-preview-card,.choosing-modal .preview-card-inner{width:clamp(86px,24.38vw,122px) !important;height:calc(clamp(86px,24.38vw,122px) * 1.55) !important;}
-.choosing-modal .spread-preview{min-height:calc((clamp(86px,24.38vw,122px) * 1.55 + 8px)) !important;overflow:visible !important;}
-.choosing-modal .custom-reading-overlay-button{width:clamp(170px,42.66vw,195px) !important;height:clamp(54px,13.41vw,61px) !important;max-width:90% !important;padding:0 !important;overflow:hidden !important;}
-.choosing-modal .custom-reading-overlay-button img{width:100% !important;height:100% !important;object-fit:cover !important;display:block !important;position:absolute !important;top:0 !important;left:0 !important;border-radius:inherit !important;}
-.choosing-modal .modal-bottom-buttons{margin:clamp(-450px,-90vw,-750px) 0 0 0 !important;}
 }
 
 /* =========================
@@ -2708,11 +2577,9 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 .taro-background,
 .taro-deck-inner,
 .taro-card-back,
-.preview-card-back,
 .custom-reading-underlay-image,
 .gallery-card img,
-.taro-card-image,
-.preview-card-image{
+.taro-card-image{
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -2771,72 +2638,10 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 }
 
 /* =========================
-   MODE SELECTION + GET READING MOBILE FIX
+   GET READING MOBILE FIX
    ========================= */
 
-/* 1) Mode container: keep it responsive */
-.spread-selection{
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-/* 2) On mobile, use a grid layout so everything fits */
-@media (max-width: 480px){
-  .spread-selection{
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px !important;
-    align-items: stretch !important;
-    padding: clamp(12px, 3vw, 20px) !important;
-  }
-  
-  .spread-option{
-    min-width: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    transform: none !important;
-    padding: 8px !important;
-  }
-  
-  .spread-preview{
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  
-  .preview-card,
-  .single-preview-card,
-  .three-preview-card{
-    max-width: 100% !important;
-  }
-}
-
-/* 3) If the screen is very narrow, use one column */
-@media (max-width: 360px){
-  .spread-selection{
-    grid-template-columns: 1fr !important;
-  }
-}
-
-/* 4) Custom Reading button: shrink on mobile */
-@media (max-width: 480px){
-  .custom-reading-button,
-  .custom-reading-overlay-button{
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box !important;
-  }
-  
-  .choosing-modal .custom-reading-overlay-button{
-    width: clamp(140px,35vw,160px) !important;
-    max-width: 90% !important;
-    height: clamp(44px,11vw,50px) !important;
-    min-height: 44px !important;
-  }
-}
-
-/* 5) Get Reading button fix: often overflows due to padding/letter-spacing */
+/* Get Reading button fix: often overflows due to padding/letter-spacing */
 .get-reading-container{
   width: 100% !important;
   max-width: 100% !important;
@@ -2892,89 +2697,6 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   }
 }
 
-/* 7) Choosing modal: add scroll when needed */
-@media (max-width: 480px){
-  .choosing-modal{
-    overflow-y: auto !important;
-    max-height: calc(100svh - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0)) !important;
-  }
-  
-  .choosing-modal .spread-selection{
-    min-height: auto !important;
-  }
-}
-
-/* =========================
-   MODE SELECT: NO INNER SCROLL + ALWAYS FIT
-   ========================= */
-
-/* 1) Main spread chooser: fixed height, no scroll */
-.choosing-modal{
-  height: calc(var(--vh, 1vh) * 100) !important;
-  max-height: calc(var(--vh, 1vh) * 100) !important;
-  padding-top: env(safe-area-inset-top, 0) !important;
-  padding-bottom: env(safe-area-inset-bottom, 0) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-  box-sizing: border-box !important;
-}
-
-/* 2) Inner area: remove scroll, use flex */
-.choosing-modal .spread-selection{
-  flex: 1 !important;
-  min-height: 0 !important;
-  display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: clamp(8px, 2.2vw, 16px) !important;
-  overflow: hidden !important;
-  align-items: center !important;
-  justify-items: center !important;
-  padding: clamp(6px, 1.8vw, 14px) !important;
-  box-sizing: border-box !important;
-}
-
-/* 3) Spread options: keep compact */
-.spread-option{
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  justify-content: center !important;
-  transform: none !important;
-}
-
-/* 4) Card preview: lock aspect ratio */
-.spread-preview{
-  width: 100% !important;
-  max-width: clamp(120px, 34vw, 190px) !important;
-  aspect-ratio: 1.55 / 1 !important;
-  min-height: 0 !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-}
-
-.preview-card,
-.single-preview-card,
-.three-preview-card{
-  width: 100% !important;
-  max-width: 100% !important;
-  height: auto !important;
-  aspect-ratio: 1.55 / 1 !important;
-  min-height: 0 !important;
-}
-
-.preview-card-image{
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain !important;
-}
-
-/* 5) Custom Reading button: scale up by ~1/3 */
 .custom-reading-overlay-button{
   width: min(115vw, 559px) !important;
   transform: scale(1.0) !important;
@@ -2994,42 +2716,10 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   border-radius: inherit !important;
 }
 
-/* 6) Modal bottom buttons: compact */
 .modal-bottom-buttons{
   flex-shrink: 0 !important;
   min-height: 0 !important;
   padding: clamp(8px, 2vw, 12px) !important;
-}
-
-/* 7) On short screens, compress further */
-@media (max-height: 720px){
-  .choosing-modal .spread-selection{
-    gap: 10px !important;
-    padding: clamp(4px, 1.5vw, 10px) !important;
-  }
-  
-  .spread-preview{
-    max-width: clamp(110px, 33vw, 170px) !important;
-  }
-  
-  .custom-reading-overlay-button{
-    transform: scale(0.80) !important;
-  }
-}
-
-/* 8) On very narrow screens, use one column */
-@media (max-width: 340px){
-  .choosing-modal .spread-selection{
-    grid-template-columns: 1fr !important;
-  }
-}
-
-/* 9) Remove transforms from options on mobile */
-@media (max-width: 768px){
-  .single-card-option,
-  .three-cards-option{
-    transform: none !important;
-  }
 }
 
 /* =========================
