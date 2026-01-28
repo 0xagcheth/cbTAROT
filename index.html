@@ -460,6 +460,7 @@
           }, 0);
         }, [restoreQuestionFocus, shouldKeepQuestionFocus]);
 
+        // Ball speaks only when asked: tap on ball or shake device (no auto-show)
         const triggerOracle=useCallback(() => {
           if (oracleBusyRef.current || !isMainScreenRef.current) return;
           if(oracleHideTimerRef.current) clearTimeout(oracleHideTimerRef.current);
@@ -1284,13 +1285,9 @@ Important: This must be a unique interpretation for this specific card spread. M
 
           if (spread === "ONE" || spread === "THREE" || spread === "CUSTOM") {
             try {
-              if (spread === "THREE") {
-                await pay(PRICE_THREE);
-              }
               await startSpreadAnimation(spread);
             } catch (e) {
-              // Payment failed or cancelled - don't proceed
-              console.error("Payment failed, reading cancelled:", e);
+              console.error("Spread animation failed:", e);
               setSelectedSpread(null);
               setGameStage("idle");
             }
@@ -1428,11 +1425,6 @@ Important: This must be a unique interpretation for this specific card spread. M
           setShowAiPanel(false);
         };
 
-        const handleChooseSpreadClick=() => {
-          playButtonSound();
-          setGameStage("choosing");
-        };
-
         // keep focus after rerenders on mobile (without forcing caret)
         useEffect(() => {
           const isMobile=typeof window!=="undefined" && window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
@@ -1523,10 +1515,9 @@ Important: This must be a unique interpretation for this specific card spread. M
                     const pos=val.length;
                     lastQuestionCaretRef.current=pos;
                     setUserQuestion(val);
-                    // Only set cursor position, don't force refocus
                     requestAnimationFrame(() => {
                       const el=questionInputRef.current;
-                      if (!el || document.activeElement !== el) return;
+                      if (!el) return;
                       if (typeof el.setSelectionRange === "function") {
                         try { el.setSelectionRange(pos, pos); } catch {}
                       }
@@ -1538,10 +1529,9 @@ Important: This must be a unique interpretation for this specific card spread. M
                     const val=e.target.value.substring(0,500);
                     lastQuestionCaretRef.current=val.length;
                     setUserQuestion(val);
-                    // Only set cursor position, don't force refocus
                     requestAnimationFrame(() => {
                       const el=questionInputRef.current;
-                      if (!el || document.activeElement !== el) return;
+                      if (!el) return;
                       if (typeof el.setSelectionRange === "function") {
                         try { el.setSelectionRange(val.length, val.length); } catch {}
                       }
@@ -1593,7 +1583,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                         alert('Please enter your question first (at least 3 characters).');
                         return;
                       }
-                      setGameStage("choosing");
+                      handleSelectSpread("THREE");
                     })}
                     disabled={isLoading || isPaying || !userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3}
                   >
@@ -1633,6 +1623,7 @@ Important: This must be a unique interpretation for this specific card spread. M
               </header>
 
               <main className="taro-main">
+                {/* Ritual flow: table (scene) → ball/cards on table → question block under table → Get Reading under table edge */}
                 <div className="control-buttons">
                   <button
                     className="gallery-button"
@@ -1648,17 +1639,6 @@ Important: This must be a unique interpretation for this specific card spread. M
 
                 <div className={`taro-table-wrap ${gameStage === "idle" ? "taro-table-top" : "taro-table-centered"}`}>
                   <div className={`taro-table ${gameStage === "animating" ? "table-animating" : ""}`}>
-                    {gameStage === "choosing" && (
-                      <div className="choosing-back-at-table" aria-hidden="true">
-                        <button
-                          className="taro-button secondary"
-                          onClick={() => { playButtonSound(); setGameStage("idle"); }}
-                          aria-label="Back"
-                        >
-                          &lt;
-                        </button>
-                      </div>
-                    )}
                     <div className="taro-table-content">
                       {isMainScreen && (
                         <div className="orb-container" id="orbWrap">
@@ -1774,136 +1754,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                         </div>
                       )}
 
-                      {gameStage === "choosing" && (
-                        <div
-                          className="taro-modal choosing-modal"
-                          onClick={(e) => {
-                            const clickedElement=e.target;
-                            const isContentClick=clickedElement.closest('.spread-option') ||
-                                                  clickedElement.closest('.modal-bottom-buttons') ||
-                                                  clickedElement.closest('.custom-reading-overlay-button');
-
-                            if (!isContentClick) {
-                              playButtonSound();
-                              setGameStage("idle");
-                            }
-                          }}
-                        >
-                          <div
-                            className="spread-selection"
-                            onClick={(e) => {
-                              if (e.target === e.currentTarget || !e.target.closest('.spread-option')) {
-                                playButtonSound();
-                                setGameStage("idle");
-                              }
-                            }}
-                          >
-                            <div
-                              className="spread-option single-card-option"
-                              onClick={withClick((e) => {
-                                if (!isLoading && !isPaying) {
-                                  handleSelectSpread("ONE");
-                                }
-                              })}
-                              style={{ opacity: (isLoading || isPaying) ? 0.5 : 1, cursor: (isLoading || isPaying) ? 'not-allowed' : 'pointer' }}
-                            >
-                              <div className="spread-preview">
-                                <div className="preview-card single-preview-card">
-                                  <div className="preview-card-inner">
-                                    <div className="preview-card-back"></div>
-                                    <div className="preview-card-front">
-                                      <img
-                                        src={cardImagePath("The Fool")}
-                                        alt="Single Card"
-                                        className="preview-card-image"
-                                        onError={(e) => {
-                                          e.target.src=cardImagePath("The Magician");
-                                        }} />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div
-                              className="spread-option three-cards-option"
-                              onClick={withClick((e) => {
-                                if (!isLoading && !isPaying) {
-                                  handleSelectSpread("THREE");
-                                }
-                              })}
-                              style={{ opacity: (isLoading || isPaying) ? 0.5 : 1, cursor: (isLoading || isPaying) ? 'not-allowed' : 'pointer' }}
-                            >
-                              <div className="spread-preview">
-                                <div className="preview-card three-preview-card left-card">
-                                  <div className="preview-card-inner">
-                                    <div className="preview-card-back"></div>
-                                    <div className="preview-card-front">
-                                      <img
-                                        src={cardImagePath("The Fool")}
-                                        alt="Three Cards"
-                                        className="preview-card-image"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="preview-card three-preview-card center-card">
-                                  <div className="preview-card-inner">
-                                    <div className="preview-card-back"></div>
-                                    <div className="preview-card-front">
-                                      <img
-                                        src={cardImagePath("The Magician")}
-                                        alt="Three Cards"
-                                        className="preview-card-image"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="preview-card three-preview-card right-card">
-                                  <div className="preview-card-inner">
-                                    <div className="preview-card-back"></div>
-                                    <div className="preview-card-front">
-                                      <img
-                                        src={cardImagePath("The High Priestess")}
-                                        alt="Three Cards"
-                                        className="preview-card-image"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {payError && (
-                            <div style={{
-                              textAlign: 'center',
-                              color: '#ff6b6b',
-                              fontSize: '0.8rem',
-                              marginTop: '0.5rem',
-                              padding: '0.5rem',
-                              background: 'rgba(255,107,107,0.1)',
-                              borderRadius: '8px'
-                            }}>
-                              ⚠️ {payError}
-                            </div>
-                          )}
-
-                          <div className="modal-bottom-buttons">
-                            <button
-                              className="modal-back-btn"
-                              onClick={() => {
-                                playButtonSound();
-                                setGameStage("idle");
-                              }}
-                              aria-label="Back"
-                            >
-                              &lt;
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
                       <footer className="taro-footer">
                         {isAllRevealed && (
                           <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', width: '100%' }}>
@@ -1917,51 +1767,51 @@ Important: This must be a unique interpretation for this specific card spread. M
                   </div>
                 </div>
 
-            {isAllRevealed && (selectedSpread === "THREE" || selectedSpread === "CUSTOM") && (
-              <div className="get-reading-container get-reading-on-table">
-                {!aiInterpretation && !isGeneratingAI && (
-                  <button
-                    className="custom-reading-overlay-button custom-reading-get-button"
-                    onClick={async () => {
-                      if (isPaying) return;
-                      playButtonSound();
-                      const questionRaw=(userQuestion || '').trim();
-                      const hasQuestion=questionRaw && questionRaw.length>=3;
-                      const finalQuestion=hasQuestion ? questionRaw : (selectedSpread === "THREE" ? "Three-card reading" : "");
-                      if (selectedSpread === "CUSTOM" && !finalQuestion) {
-                        alert('Please enter your question first (at least 3 characters).');
-                        setGameStage("custom");
-                        return;
-                      }
-                      try {
-                        await pay(PRICE_READING);
-                        await generateCustomInterpretation(revealedIds, finalQuestion);
-                      } catch (err) {
-                        console.error("Get Reading payment or generation failed:", err);
-                      }
-                    }}
-                    disabled={isGeneratingAI || isPaying || (selectedSpread === "CUSTOM" && (!userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3))}
-                    aria-label="Get Reading"
-                  >
-                    <span className="custom-reading-get-text">Get Reading</span>
-                  </button>
-                )}
-                {isGeneratingAI && (
-                  <div className="taro-generating" style={{ color: "#ffd700" }}>
-                    ✨ Generating reading...
+                {isAllRevealed && (selectedSpread === "THREE" || selectedSpread === "CUSTOM") && (
+                  <div className="get-reading-container get-reading-on-table get-reading-below-table">
+                    {!aiInterpretation && !isGeneratingAI && (
+                      <button
+                        className="custom-reading-overlay-button custom-reading-get-button"
+                        onClick={async () => {
+                          if (isPaying) return;
+                          playButtonSound();
+                          const questionRaw=(userQuestion || '').trim();
+                          const hasQuestion=questionRaw && questionRaw.length>=3;
+                          const finalQuestion=hasQuestion ? questionRaw : (selectedSpread === "THREE" ? "Three-card reading" : "");
+                          if (selectedSpread === "CUSTOM" && !finalQuestion) {
+                            alert('Please enter your question first (at least 3 characters).');
+                            setGameStage("custom");
+                            return;
+                          }
+                          try {
+                            await pay(PRICE_READING);
+                            await generateCustomInterpretation(revealedIds, finalQuestion);
+                          } catch (err) {
+                            console.error("Get Reading payment or generation failed:", err);
+                          }
+                        }}
+                        disabled={isGeneratingAI || isPaying || (selectedSpread === "CUSTOM" && (!userQuestion || !userQuestion.trim() || userQuestion.trim().length < 3))}
+                        aria-label="Get Reading"
+                      >
+                        <span className="custom-reading-get-text">Get Reading</span>
+                      </button>
+                    )}
+                    {isGeneratingAI && (
+                      <div className="taro-generating" style={{ color: "#ffd700" }}>
+                        ✨ Generating reading...
+                      </div>
+                    )}
+                    {aiInterpretation && (
+                      <button
+                        className="custom-reading-overlay-button custom-reading-get-button"
+                        onClick={() => { playButtonSound(); setShowAiPanel(true); }}
+                        aria-label="Open reading"
+                      >
+                        <span className="custom-reading-get-text">Get Reading</span>
+                      </button>
+                    )}
                   </div>
                 )}
-                {aiInterpretation && (
-                  <button
-                    className="custom-reading-overlay-button custom-reading-get-button"
-                    onClick={() => { playButtonSound(); setShowAiPanel(true); }}
-                    aria-label="Open reading"
-                  >
-                    <span className="custom-reading-get-text">Get Reading</span>
-                  </button>
-                )}
-              </div>
-            )}
 
                 <CustomQuestionWindow mode={customWindowMode} visible={customWindowVisible} />
 
@@ -2326,6 +2176,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-table-centered .taro-table{
   margin:0;
 }
+/* Get Reading: right under table at lower edge, after cards revealed */
 .get-reading-container{
   position:relative;
   left:auto;
@@ -2401,6 +2252,7 @@ to{transform:rotate(360deg);}
 }
 .modal-header h2{margin:0;flex:1;text-align:center;}
 .custom-modal-content{display:flex;flex-direction:column;align-items:center;gap:clamp(24px,6vw,40px);max-width:500px;width:100%;box-sizing:border-box;}
+/* Question block: under table, preparation for ritual */
 .custom-reading-inline-wrap{width:100%;display:flex;justify-content:center;align-items:flex-start;margin-top:clamp(-36px,-6vh,8px);padding:0 var(--pad);box-sizing:border-box;position:relative;z-index:1;}
 .custom-reading-inline{position:static !important;transform:none !important;margin:0 auto;width:min(640px,95vw);max-width:640px;padding:clamp(1.25rem,4vw,2rem);box-shadow:0 0 40px rgba(0,123,255,0.25),0 0 80px rgba(0,123,255,0.1);}
 .custom-reading-inline .custom-modal-input{min-height:112px;}
@@ -2569,7 +2421,10 @@ to{transform:rotate(360deg);}
 .taro-card-fallback{padding:1rem;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;text-align:center;}
 .taro-card-name{font-size:1.1rem;font-weight:bold;margin-bottom:0.5rem;color:#007bff;}
 .taro-card-keyword{font-size:0.9rem;font-style:italic;color:#4a5568;margin-bottom:0.5rem;}
-.taro-footer{position:absolute;bottom:clamp(calc(var(--pad) * 0.15), calc(var(--pad) * 0.2 + var(--safe-area-inset-bottom,0) * 0.3), calc(var(--pad) * 0.3));left:50%;transform:translateX(-50%);text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(0, 0.75rem, 1rem);z-index:20;width:auto;max-width:calc(var(--tableW) - var(--pad) * 2);pointer-events:auto;}
+/* Back button: at bottom of table */
+.taro-footer{position:absolute;bottom:clamp(calc(var(--pad) * 0.15), calc(var(--pad) * 0.2 + var(--safe-area-inset-bottom,0) * 0.3), calc(var(--pad) * 0.3));left:50%;transform:translateX(-50%);text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(0.5rem, 2vh, 1.25rem);z-index:20;width:auto;max-width:calc(var(--tableW) - var(--pad) * 2);pointer-events:auto;}
+/* Get Reading: below table object, in main flow */
+.get-reading-below-table{margin-top:-400px;}
 .taro-button{padding:clamp(0.2rem, 1vw, 1rem) clamp(0.5rem, 2.5vw, 2.5rem);font-size:clamp(0.7rem, 1.2vw, 1.2rem);background:linear-gradient(135deg,rgba(0,123,255,0.2),rgba(0,50,150,0.2),rgba(0,123,255,0.1)
  );backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.2);border-radius:9px;color:#fff;cursor:pointer;transition:all 0.3s ease;font-family:'Georgia','Times New Roman',serif;font-weight:300;letter-spacing:0.05em;box-shadow:0 8px 32px rgba(0,123,255,0.3),inset 0 1px 0 rgba(255,255,255,0.1),inset 0 -1px 0 rgba(0,0,0,0.1);}
 .taro-button:hover{background:linear-gradient(135deg,rgba(0,123,255,0.3),rgba(0,50,150,0.3),rgba(0,123,255,0.2)
