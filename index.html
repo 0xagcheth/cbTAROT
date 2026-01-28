@@ -1699,57 +1699,56 @@ Important: This must be a unique interpretation for this specific card spread. M
 
                       <footer className="taro-footer">
                         {isAllRevealed && (
-                          <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', width: '100%' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(0.5rem, 2vh, 1.25rem)', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
                             <button className="taro-button secondary" onClick={() => { playButtonSound(); handleNewSpread(); }}>
                               &lt;
                             </button>
+                            {selectedSpread === "THREE" && (
+                              <div className="get-reading-container get-reading-on-table get-reading-below-table">
+                                {!aiInterpretation && !isGeneratingAI && (
+                                  <button
+                                    className="custom-reading-overlay-button custom-reading-get-button"
+                                    onClick={async () => {
+                                      if (isPaying) return;
+                                      playButtonSound();
+                                      const questionRaw=(userQuestion || '').trim();
+                                      const hasQuestion=questionRaw && questionRaw.length>=3;
+                                      const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
+                                      try {
+                                        await pay(PRICE_READING);
+                                        await generateCustomInterpretation(revealedIds, finalQuestion);
+                                      } catch (err) {
+                                        console.error("Get Reading payment or generation failed:", err);
+                                      }
+                                    }}
+                                    disabled={isGeneratingAI || isPaying}
+                                    aria-label="Get Reading"
+                                  >
+                                    <span className="custom-reading-get-text">Get Reading</span>
+                                  </button>
+                                )}
+                                {isGeneratingAI && (
+                                  <div className="taro-generating" style={{ color: "#ffd700" }}>
+                                    ✨ Generating reading...
+                                  </div>
+                                )}
+                                {aiInterpretation && (
+                                  <button
+                                    className="custom-reading-overlay-button custom-reading-get-button"
+                                    onClick={() => { playButtonSound(); setShowAiPanel(true); }}
+                                    aria-label="Open reading"
+                                  >
+                                    <span className="custom-reading-get-text">Get Reading</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </footer>
                     </div>
                   </div>
                 </div>
-
-                {isAllRevealed && selectedSpread === "THREE" && (
-                  <div className="get-reading-container get-reading-on-table get-reading-below-table">
-                    {!aiInterpretation && !isGeneratingAI && (
-                      <button
-                        className="custom-reading-overlay-button custom-reading-get-button"
-                        onClick={async () => {
-                          if (isPaying) return;
-                          playButtonSound();
-                          const questionRaw=(userQuestion || '').trim();
-                          const hasQuestion=questionRaw && questionRaw.length>=3;
-                          const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
-                          try {
-                            await pay(PRICE_READING);
-                            await generateCustomInterpretation(revealedIds, finalQuestion);
-                          } catch (err) {
-                            console.error("Get Reading payment or generation failed:", err);
-                          }
-                        }}
-                        disabled={isGeneratingAI || isPaying}
-                        aria-label="Get Reading"
-                      >
-                        <span className="custom-reading-get-text">Get Reading</span>
-                      </button>
-                    )}
-                    {isGeneratingAI && (
-                      <div className="taro-generating" style={{ color: "#ffd700" }}>
-                        ✨ Generating reading...
-                      </div>
-                    )}
-                    {aiInterpretation && (
-                      <button
-                        className="custom-reading-overlay-button custom-reading-get-button"
-                        onClick={() => { playButtonSound(); setShowAiPanel(true); }}
-                        aria-label="Open reading"
-                      >
-                        <span className="custom-reading-get-text">Get Reading</span>
-                      </button>
-                    )}
-                  </div>
-                )}
 
                 <CustomQuestionWindow mode={customWindowMode} visible={customWindowVisible} />
 
@@ -2335,7 +2334,7 @@ to{transform:rotate(360deg);}
 /* Get Reading: below table object, in main flow */
 .get-reading-below-table{margin-top:-400px;}
 @media (max-width:768px){
-.get-reading-below-table{margin-top:-400px;margin-bottom:clamp(16px,4vh,24px);}
+.get-reading-below-table{margin-top:0;margin-bottom:clamp(16px,4vh,24px);}
 }
 .taro-button{padding:clamp(0.2rem, 1vw, 1rem) clamp(0.5rem, 2.5vw, 2.5rem);font-size:clamp(0.7rem, 1.2vw, 1.2rem);background:linear-gradient(135deg,rgba(0,123,255,0.2),rgba(0,50,150,0.2),rgba(0,123,255,0.1)
  );backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.2);border-radius:9px;color:#fff;cursor:pointer;transition:all 0.3s ease;font-family:'Georgia','Times New Roman',serif;font-weight:300;letter-spacing:0.05em;box-shadow:0 8px 32px rgba(0,123,255,0.3),inset 0 1px 0 rgba(255,255,255,0.1),inset 0 -1px 0 rgba(0,0,0,0.1);}
