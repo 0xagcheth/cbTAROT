@@ -645,6 +645,11 @@
           let motionAttached=false;
 
           const handleMotion=(event) => {
+            // Ignore shake when user is typing (prevents iOS "Shake to Undo")
+            const activeEl = document.activeElement;
+            const isTyping = activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT');
+            if (isTyping) return;
+            
             const acc=event?.accelerationIncludingGravity || event?.acceleration;
             if (!acc) return;
             const now=Date.now();
@@ -1488,7 +1493,7 @@ Important: This must be a unique interpretation for this specific card spread. M
         useEffect(() => {
           if (!customWindowVisible || !showCustomModal) return;
           restoreQuestionFocus();
-        }, [userQuestion, customWindowVisible, showCustomModal, restoreQuestionFocus]);
+        }, [customWindowVisible, showCustomModal, restoreQuestionFocus]);
 
         const CustomQuestionWindow=({ mode="modal", visible=true }) => {
           const isInline=mode === "inline";
@@ -1518,12 +1523,10 @@ Important: This must be a unique interpretation for this specific card spread. M
                     const pos=val.length;
                     lastQuestionCaretRef.current=pos;
                     setUserQuestion(val);
+                    // Only set cursor position, don't force refocus
                     requestAnimationFrame(() => {
                       const el=questionInputRef.current;
-                      if (!el) return;
-                      if (document.activeElement !== el) {
-                        el.focus({ preventScroll:true });
-                      }
+                      if (!el || document.activeElement !== el) return;
                       if (typeof el.setSelectionRange === "function") {
                         try { el.setSelectionRange(pos, pos); } catch {}
                       }
@@ -1535,12 +1538,10 @@ Important: This must be a unique interpretation for this specific card spread. M
                     const val=e.target.value.substring(0,500);
                     lastQuestionCaretRef.current=val.length;
                     setUserQuestion(val);
+                    // Only set cursor position, don't force refocus
                     requestAnimationFrame(() => {
                       const el=questionInputRef.current;
-                      if (!el) return;
-                      if (document.activeElement !== el) {
-                        el.focus({ preventScroll:true });
-                      }
+                      if (!el || document.activeElement !== el) return;
                       if (typeof el.setSelectionRange === "function") {
                         try { el.setSelectionRange(val.length, val.length); } catch {}
                       }
@@ -2326,7 +2327,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   margin:0;
 }
 .get-reading-container{
-  position:static;
+  position:relative;
   left:auto;
   bottom:auto;
   transform:none;
@@ -2336,7 +2337,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   gap:10px;
   width:100%;
   margin:clamp(12px,4vh,24px) auto 0;
-  z-index:200;
+  z-index:500;
 }
 .get-reading-on-table{pointer-events:auto;}
 .taro-table{position:relative;width:var(--tableW);aspect-ratio:var(--tableAR);background:rgba(255,255,255,0.05);border-radius:50%;border:1px solid rgba(255,255,255,0.3);box-shadow:0 32px 90px rgba(0,123,255,0.45),0 12px 36px rgba(0,123,255,0.28),inset 0 0 30px rgba(255,255,255,0.05);margin:calc(var(--pad) * 0.1) auto;transition:box-shadow 0.3s ease;transform-origin:center center;transform:translateZ(0);overflow:visible;min-width:var(--tableW);max-width:var(--tableW);flex-shrink:0;will-change:transform;}
