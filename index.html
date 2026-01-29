@@ -15,6 +15,9 @@
     <meta property="og:image" content="https://0xagcheth.github.io/cbTARO/og.png" />
     <meta property="og:url" content="https://0xagcheth.github.io/cbTARO/" />
     <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet" />
 </head>
 <body>
     <script>
@@ -1535,8 +1538,8 @@ Important: This must be a unique interpretation for this specific card spread. M
                 <div className={`taro-table-wrap ${gameStage === "idle" ? "taro-table-top" : "taro-table-centered"} ${(gameStage === "spread" || gameStage === "reading") && isAllRevealed ? "taro-table-cards-revealed" : ""}`}>
                   {isMainScreen && hintVisible && (
                     <>
-                      <div className="orb-hint orb-hint-left" aria-hidden="true">Press the orb or shake it.</div>
-                      <div className="orb-hint orb-hint-right" aria-hidden="true">Press the orb or shake it.</div>
+                      <div className="orb-hint orb-hint-left" aria-hidden="true">Press the orb or shake it</div>
+                      <div className="orb-hint orb-hint-right" aria-hidden="true">Press the orb or shake it</div>
                     </>
                   )}
                   <div className={`taro-table ${gameStage === "animating" ? "table-animating" : ""}`}>
@@ -1598,7 +1601,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                               }}
                               aria-label="Ask the oracle"
                             />
-                            <div className={`orb-oracle-text ${oracleVisible ? "visible" : ""}`}>
+                            <div className={`orb-oracle-text ${oracleVisible ? "visible" : ""}${(oracleMessage && String(oracleMessage).trim().includes(' ')) ? " multi-word" : ""}`}>
                               <span>{oracleMessage || "ASK"}</span>
                             </div>
                           </div>
@@ -2078,14 +2081,15 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-hash{text-align:center;padding:1rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:1rem;color:#fff;}
 .taro-hash code{display:block;margin-top:0.5rem;font-family:'Courier New',monospace;color:#4ade80;word-break:break-all;}
 .taro-main{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:var(--pad) 0;min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));}
-.orb-hint{position:absolute;top:calc(50% - 50px);transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(12.6px,2.5vw,16px);font-family:'Georgia','Times New Roman',serif;letter-spacing:0.12em;color:rgba(255,255,255,0.55);text-shadow:0 0 8px rgba(0,0,0,0.4);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease;}
+.orb-hint{position:absolute;top:calc(50% - 50px);transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(14px,2.8vw,18px);font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;letter-spacing:0.14em;color:rgba(255,255,255,0.9);text-shadow:0 0 12px rgba(255,255,255,0.3),0 0 20px rgba(0,0,0,0.5);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease,orb-hint-shake 2.5s ease-in-out infinite;}
 .orb-hint-left{left:clamp(8px,2vw,20px);}
 .orb-hint-right{right:clamp(8px,2vw,20px);}
-@media (max-width:768px){.orb-hint{position:absolute !important;top:50% !important;left:auto !important;right:auto !important;transform:translateY(-50%) !important;}
+@media (max-width:768px){.orb-hint{position:absolute !important;top:50% !important;left:auto !important;right:auto !important;}
 .orb-hint-left{left:clamp(6px,2vw,16px) !important;}
 .orb-hint-right{left:auto !important;right:clamp(6px,2vw,16px) !important;}
 }
 @keyframes orb-hint-fade{0%{opacity:0;}100%{opacity:1;}}
+@keyframes orb-hint-shake{0%,100%{transform:translateY(-50%) translateX(0) rotate(-1deg);}20%{transform:translateY(-50%) translateX(4px) rotate(1deg);}40%{transform:translateY(-50%) translateX(-4px) rotate(-1deg);}60%{transform:translateY(-50%) translateX(3px) rotate(1deg);}80%{transform:translateY(-50%) translateX(-2px) rotate(-0.5deg);}}
 .taro-table-wrap{
   position:relative;
   transform-origin:center center;
@@ -2218,6 +2222,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .orb-oracle-hit:hover{transform:scale(1.03);border-color:rgba(255,255,255,0.18);box-shadow:0 0 30px rgba(160,200,255,0.16),0 0 70px rgba(80,140,255,0.12);}
 .orb-oracle-hit:disabled{cursor:wait;filter:saturate(0.7);opacity:0.7;}
 .orb-oracle-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transform:scale(0.92);transition:opacity 0.7s ease-in-out, transform 0.7s ease-in-out;font-family:'Georgia','Times New Roman',serif;font-weight:600;font-size:clamp(18px,4vw,28px);color:rgba(255,255,255,0.5);text-shadow:0 0 10px rgba(140,180,255,0.65),0 0 18px rgba(80,140,255,0.32),0 0 24px rgba(0,0,0,0.32);letter-spacing:0.12em;}
+.orb-oracle-text.multi-word{font-size:0.8em;}
 .orb-oracle-text.visible{opacity:1;transform:scale(1.02);}
 .taro-table-content > *{pointer-events:auto;overflow:visible;}
 .table-animating{animation:tablePulse 1.2s ease-in-out;box-shadow:0 0 120px rgba(0,123,255,0.6),0 0 240px rgba(0,123,255,0.3),inset 0 0 50px rgba(255,255,255,0.2);transform-origin:center center !important;margin:calc(var(--pad) * 0.1) auto !important;width:var(--tableW) !important;aspect-ratio:var(--tableAR) !important;border-radius:50% !important;min-width:var(--tableW) !important;max-width:var(--tableW) !important;}
