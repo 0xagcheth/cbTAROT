@@ -2372,7 +2372,7 @@ to{transform:rotate(360deg);}
   right:0;
   margin:0 !important;
   margin-top:clamp(12px, 3vh, 24px) !important;
-  transform:translateY(-400px) !important;
+  transform:translateY(-450px) !important;
   z-index:500;
   display:flex;
   justify-content:center;
@@ -2765,6 +2765,15 @@ button.taro-button.question-get-reading-btn:active{
     margin-top: clamp(12px, 3vh, 24px) !important;
     width: 100% !important;
     justify-content: center !important;
+    overflow: visible !important;
+  }
+  /* Увеличить кнопку Get Reading в 3 раза на мобильных */
+  .get-reading-container .question-get-reading-btn{
+    transform: scale(3) !important;
+    transform-origin: center center;
+  }
+  .get-reading-container .question-get-reading-btn:active{
+    transform: scale(2.76) !important;
   }
 }
 
