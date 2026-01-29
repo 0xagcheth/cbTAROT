@@ -2326,7 +2326,7 @@ to{transform:rotate(360deg);}
   left:0;
   right:0;
   margin:0 !important;
-  margin-top:clamp(12px, 3vh, 24px) !important;
+  margin-top:calc(clamp(12px, 3vh, 24px) - 200px) !important;
   z-index:500;
   display:flex;
   justify-content:center;
@@ -2647,7 +2647,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 /* On mobile, make Get Reading more compact */
 @media (max-width: 480px){
   .get-reading-container.get-reading-below-table{
-    margin-top: clamp(10px, 2.5vh, 20px) !important;
+    margin-top: calc(clamp(10px, 2.5vh, 20px) - 200px) !important;
   }
   .get-reading-container button,
   .get-reading-container .taro-button{
@@ -2671,7 +2671,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 /* Mobile: Get Reading stays under table (position from .get-reading-below-table) */
 @media (max-width: 768px){
   .get-reading-container.get-reading-below-table{
-    margin-top: clamp(12px, 3vh, 24px) !important;
+    margin-top: calc(clamp(12px, 3vh, 24px) - 200px) !important;
     width: 100% !important;
     justify-content: center !important;
   }
