@@ -1614,6 +1614,46 @@ Important: This must be a unique interpretation for this specific card spread. M
                       </footer>
                     </div>
                   </div>
+                {isAllRevealed && selectedSpread === "THREE" && (
+                  <div className="get-reading-container get-reading-on-table get-reading-below-table">
+                    {!aiInterpretation && !isGeneratingAI && (
+                      <button
+                        className="custom-reading-overlay-button custom-reading-get-button"
+                        onClick={async () => {
+                          if (isPaying) return;
+                          playButtonSound();
+                          const questionRaw=(userQuestion || '').trim();
+                          const hasQuestion=questionRaw && questionRaw.length>=3;
+                          const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
+                          try {
+                            await pay(PRICE_READING);
+                            await generateCustomInterpretation(revealedIds, finalQuestion);
+                          } catch (err) {
+                            console.error("Get Reading payment or generation failed:", err);
+                          }
+                        }}
+                        disabled={isGeneratingAI || isPaying}
+                        aria-label="Get Reading"
+                      >
+                        <span className="custom-reading-get-text">Get Reading</span>
+                      </button>
+                    )}
+                    {isGeneratingAI && (
+                      <div className="taro-generating" style={{ color: "#ffd700" }}>
+                        ✨ Generating reading...
+                      </div>
+                    )}
+                    {aiInterpretation && (
+                      <button
+                        className="custom-reading-overlay-button custom-reading-get-button"
+                        onClick={() => { playButtonSound(); setShowAiPanel(true); }}
+                        aria-label="Open reading"
+                      >
+                        <span className="custom-reading-get-text">Get Reading</span>
+                      </button>
+                    )}
+                  </div>
+                )}
                 </div>
 
                 {isMainScreen && (
@@ -1660,47 +1700,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                     >
                       Invoke
                     </button>
-                  </div>
-                )}
-
-                {isAllRevealed && selectedSpread === "THREE" && (
-                  <div className="get-reading-container get-reading-on-table get-reading-below-table">
-                    {!aiInterpretation && !isGeneratingAI && (
-                      <button
-                        className="custom-reading-overlay-button custom-reading-get-button"
-                        onClick={async () => {
-                          if (isPaying) return;
-                          playButtonSound();
-                          const questionRaw=(userQuestion || '').trim();
-                          const hasQuestion=questionRaw && questionRaw.length>=3;
-                          const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
-                          try {
-                            await pay(PRICE_READING);
-                            await generateCustomInterpretation(revealedIds, finalQuestion);
-                          } catch (err) {
-                            console.error("Get Reading payment or generation failed:", err);
-                          }
-                        }}
-                        disabled={isGeneratingAI || isPaying}
-                        aria-label="Get Reading"
-                      >
-                        <span className="custom-reading-get-text">Get Reading</span>
-                      </button>
-                    )}
-                    {isGeneratingAI && (
-                      <div className="taro-generating" style={{ color: "#ffd700" }}>
-                        ✨ Generating reading...
-                      </div>
-                    )}
-                    {aiInterpretation && (
-                      <button
-                        className="custom-reading-overlay-button custom-reading-get-button"
-                        onClick={() => { playButtonSound(); setShowAiPanel(true); }}
-                        aria-label="Open reading"
-                      >
-                        <span className="custom-reading-get-text">Get Reading</span>
-                      </button>
-                    )}
                   </div>
                 )}
 
@@ -2138,8 +2137,11 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   align-items:center;
   gap:10px;
   width:100%;
-  margin:clamp(12px,4vh,24px) auto 0;
+  margin:0 auto;
   z-index:500;
+}
+.get-reading-container:not(.get-reading-below-table){
+  margin-top:clamp(12px,4vh,24px);
 }
 .get-reading-on-table{pointer-events:auto;}
 .taro-table{position:relative;width:var(--tableW);aspect-ratio:var(--tableAR);background:rgba(255,255,255,0.05);border-radius:50%;border:1px solid rgba(255,255,255,0.3);box-shadow:0 32px 90px rgba(0,123,255,0.45),0 12px 36px rgba(0,123,255,0.28),inset 0 0 30px rgba(255,255,255,0.05);margin:calc(var(--pad) * 0.1) auto;transition:box-shadow 0.3s ease;transform-origin:center center;transform:translateZ(0);overflow:visible;min-width:var(--tableW);max-width:var(--tableW);flex-shrink:0;will-change:transform;}
@@ -2317,18 +2319,18 @@ to{transform:rotate(360deg);}
 .taro-card-keyword{font-size:0.9rem;font-style:italic;color:#4a5568;margin-bottom:0.5rem;}
 /* Back button: at bottom of table */
 .taro-footer{position:absolute;bottom:clamp(calc(var(--pad) * 0.15), calc(var(--pad) * 0.2 + var(--safe-area-inset-bottom,0) * 0.3), calc(var(--pad) * 0.3));left:50%;transform:translateX(-50%);text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(0.5rem, 2vh, 1.25rem);z-index:20;width:auto;max-width:calc(var(--tableW) - var(--pad) * 2);pointer-events:auto;}
-/* Get Reading: below table; on mobile absolute so table stays fixed when cards revealed */
-.get-reading-below-table{margin-top:-435px;}
-@media (max-width:768px){
+/* Get Reading: directly under table bottom edge (container is inside .taro-table-wrap) */
 .get-reading-container.get-reading-below-table{
   position:absolute !important;
-  bottom:calc(clamp(12px, 3vh, 24px) + 20px);
+  top:100% !important;
   left:0;
   right:0;
   margin:0 !important;
-  margin-top:0 !important;
+  margin-top:clamp(12px, 3vh, 24px) !important;
   z-index:500;
-}
+  display:flex;
+  justify-content:center;
+  align-items:center;
 }
 .taro-button{padding:clamp(0.2rem, 1vw, 1rem) clamp(0.5rem, 2.5vw, 2.5rem);font-size:clamp(0.7rem, 1.2vw, 1.2rem);background:linear-gradient(135deg,rgba(0,123,255,0.2),rgba(0,50,150,0.2),rgba(0,123,255,0.1)
  );backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.2);border-radius:9px;color:#fff;cursor:pointer;transition:all 0.3s ease;font-family:'Georgia','Times New Roman',serif;font-weight:300;letter-spacing:0.05em;box-shadow:0 8px 32px rgba(0,123,255,0.3),inset 0 1px 0 rgba(255,255,255,0.1),inset 0 -1px 0 rgba(0,0,0,0.1);}
@@ -2644,9 +2646,8 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 
 /* On mobile, make Get Reading more compact */
 @media (max-width: 480px){
-  .get-reading-container{
-    margin-top: clamp(-6px, -12vh, 22px) !important;
-    bottom: calc(clamp(10px, 3vh, 28px) - 40px) !important;
+  .get-reading-container.get-reading-below-table{
+    margin-top: clamp(10px, 2.5vh, 20px) !important;
   }
   .get-reading-container button,
   .get-reading-container .taro-button{
@@ -2667,14 +2668,10 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   box-sizing: border-box !important;
 }
 
-/* Mobile: place Get Reading below the table, pull up into view */
+/* Mobile: Get Reading stays under table (position from .get-reading-below-table) */
 @media (max-width: 768px){
-  .get-reading-container{
-    position: relative !important;
-    z-index: 500 !important;
-    transform: none !important;
-    bottom: auto !important;
-    margin: -375px auto clamp(16px, 4vh, 24px) auto !important;
+  .get-reading-container.get-reading-below-table{
+    margin-top: clamp(12px, 3vh, 24px) !important;
     width: 100% !important;
     justify-content: center !important;
   }
