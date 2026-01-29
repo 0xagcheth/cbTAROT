@@ -568,18 +568,39 @@
           };
         }, []);
 
-        // Block body scroll when overlays/modals are open
+        // Block body scroll when overlays/modals are open, or on spread view (app-like: no page scroll)
         useEffect(() => {
           const hasOverlay = showGallery || activeCard || (aiInterpretation && showAiPanel);
-          if (hasOverlay) {
+          const isSpreadView = gameStage === 'spread' || gameStage === 'reading';
+          const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+          const lockBody = hasOverlay || (isSpreadView && isMobile);
+          if (lockBody) {
             document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.left = '0';
+            document.body.style.right = '0';
+            document.body.style.top = '0';
+            document.body.style.width = '100%';
+            document.body.style.height = '100dvh';
           } else {
             document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.top = '';
+            document.body.style.width = '';
+            document.body.style.height = '';
           }
           return () => {
             document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.left = '';
+            document.body.style.right = '';
+            document.body.style.top = '';
+            document.body.style.width = '';
+            document.body.style.height = '';
           };
-        }, [showGallery, activeCard, aiInterpretation, showAiPanel]);
+        }, [showGallery, activeCard, aiInterpretation, showAiPanel, gameStage]);
 
         // Farcaster Mini App: notify ready state after initial render (race-condition proof)
         useEffect(() => {
@@ -1471,7 +1492,7 @@ Important: This must be a unique interpretation for this specific card spread. M
         const isAllRevealed = Array.isArray(cards) && cards.length > 0 && Array.isArray(revealedIds) && cards.every((c) => c && c.id !== undefined && revealedIds.includes(c.id));
 
         return (
-          <div className="taro-root">
+          <div className={`taro-root ${(gameStage === 'spread' || gameStage === 'reading') ? 'taro-spread-view' : ''}`}>
             <div
               className="taro-background"
               style={{ backgroundImage: `var(--bg-url, url("${ASSET("Assets/imagine/b.png")}") )` }}
@@ -2260,6 +2281,9 @@ to{transform:rotate(360deg);}
 @media (max-width:768px){.taro-root{height:calc(var(--vh,1vh) * 100);min-height:calc(var(--vh,1vh) * 100);}
 .taro-background{height:calc(var(--vh,1vh) * 100) !important;min-height:calc(var(--vh,1vh) * 100) !important;}
 .taro-container{overflow-y:auto;overflow-x:hidden;min-height:calc(var(--vh,1vh) * 100);height:calc(var(--vh,1vh) * 100);max-height:calc(var(--vh,1vh) * 100);overscroll-behavior:contain;-webkit-overflow-scrolling:touch;overflow-anchor:none;scroll-behavior:auto;}
+/* Spread view: no scroll (app-like fixed layout) */
+.taro-root.taro-spread-view .taro-container{overflow:hidden !important;overflow-x:hidden !important;-webkit-overflow-scrolling:auto;overscroll-behavior:none;touch-action:pan-x pan-y;}
+.taro-root.taro-spread-view{overflow:hidden !important;}
 .taro-reading-overlay,.taro-modal,.gallery-modal{padding:var(--pad);}
 .taro-reading-panel,.taro-modal,.gallery-modal{max-height:calc(var(--vh,1vh) * 100 - (var(--pad) * 2) - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));overflow-y:auto;width:min(92vw,600px);margin:0 auto;}
 }
@@ -2364,7 +2388,7 @@ to{transform:rotate(360deg);}
   right:0;
   margin:0 !important;
   margin-top:clamp(12px, 3vh, 24px) !important;
-  transform:translateY(-450px) !important;
+  transform:translateY(-440px) !important;
   z-index:500;
   display:flex;
   justify-content:center;
