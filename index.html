@@ -451,19 +451,19 @@
           isMainScreenRef.current=isMainScreen;
         }, [isMainScreen]);
 
-        // Hint: show at start and every 5 min on main screen; auto-hide after 8s
+        // Hint: show at start and every 5 min on main screen; auto-hide after 10–15s
         useEffect(() => {
           if (!isMainScreen) return;
           setHintVisible(true);
           if (hintHideTimerRef.current) clearTimeout(hintHideTimerRef.current);
-          const hideDelay = 3000 + Math.random() * 2000;
+          const hideDelay = 10000 + Math.random() * 5000;
           hintHideTimerRef.current = setTimeout(() => setHintVisible(false), hideDelay);
           if (hintIntervalRef.current) clearInterval(hintIntervalRef.current);
           hintIntervalRef.current = setInterval(() => {
             if (!isMainScreenRef.current) return;
             setHintVisible(true);
             if (hintHideTimerRef.current) clearTimeout(hintHideTimerRef.current);
-            const delay = 3000 + Math.random() * 2000;
+            const delay = 10000 + Math.random() * 5000;
             hintHideTimerRef.current = setTimeout(() => setHintVisible(false), delay);
           }, 5 * 60 * 1000);
           return () => {
