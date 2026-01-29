@@ -1497,12 +1497,6 @@ Important: This must be a unique interpretation for this specific card spread. M
               </header>
 
               <main className="taro-main">
-                {isMainScreen && hintVisible && (
-                  <>
-                    <div className="orb-hint orb-hint-left" aria-hidden="true">Press the orb or shake it.</div>
-                    <div className="orb-hint orb-hint-right" aria-hidden="true">Press the orb or shake it.</div>
-                  </>
-                )}
                 {/* Ritual flow: table (scene) → ball/cards on table → Get Reading under table edge */}
                 <div className="control-buttons">
                   <button
@@ -1518,6 +1512,12 @@ Important: This must be a unique interpretation for this specific card spread. M
                 </div>
 
                 <div className={`taro-table-wrap ${gameStage === "idle" ? "taro-table-top" : "taro-table-centered"} ${(gameStage === "spread" || gameStage === "reading") && isAllRevealed ? "taro-table-cards-revealed" : ""}`}>
+                  {isMainScreen && hintVisible && (
+                    <>
+                      <div className="orb-hint orb-hint-left" aria-hidden="true">Press the orb or shake it.</div>
+                      <div className="orb-hint orb-hint-right" aria-hidden="true">Press the orb or shake it.</div>
+                    </>
+                  )}
                   <div className={`taro-table ${gameStage === "animating" ? "table-animating" : ""}`}>
                     <div className="taro-table-content">
                       {isMainScreen && (
@@ -2065,7 +2065,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-hash{text-align:center;padding:1rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:1rem;color:#fff;}
 .taro-hash code{display:block;margin-top:0.5rem;font-family:'Courier New',monospace;color:#4ade80;word-break:break-all;}
 .taro-main{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:var(--pad) 0;min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));}
-.orb-hint{position:fixed;top:50%;transform:translateY(calc(-50% - 35px));writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(12.6px,2.5vw,16px);font-family:'Georgia','Times New Roman',serif;letter-spacing:0.12em;color:rgba(255,255,255,0.55);text-shadow:0 0 8px rgba(0,0,0,0.4);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease;}
+.orb-hint{position:absolute;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(12.6px,2.5vw,16px);font-family:'Georgia','Times New Roman',serif;letter-spacing:0.12em;color:rgba(255,255,255,0.55);text-shadow:0 0 8px rgba(0,0,0,0.4);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease;}
 .orb-hint-left{left:clamp(8px,2vw,20px);}
 .orb-hint-right{right:clamp(8px,2vw,20px);}
 @keyframes orb-hint-fade{0%{opacity:0;}100%{opacity:1;}}
