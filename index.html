@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content" />
+    <meta http-equiv="Cache-Control" content="no-cache, max-age=0" />
     <title>cbTARO - Mystical Taro Reading</title>
     
     <!-- Farcaster Mini App metadata -->
@@ -17,7 +18,8 @@
     <meta property="og:type" content="website" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet" />
+    <link rel="preload" href="https://fonts.gstatic.com/s/cormorantgaramond/v21/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9KnTOitk9IfqxUQ.woff2" as="font" type="font/woff2" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&display=swap" rel="stylesheet" />
 </head>
 <body>
     <script>
@@ -2081,10 +2083,10 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-hash{text-align:center;padding:1rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:1rem;color:#fff;}
 .taro-hash code{display:block;margin-top:0.5rem;font-family:'Courier New',monospace;color:#4ade80;word-break:break-all;}
 .taro-main{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:var(--pad) 0;min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));}
-.orb-hint{position:absolute;top:calc(50% - 50px);transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(14px,2.8vw,18px);font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;letter-spacing:0.14em;color:rgba(255,255,255,0.9);text-shadow:0 0 12px rgba(255,255,255,0.3),0 0 20px rgba(0,0,0,0.5);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease,orb-hint-shake 2.5s ease-in-out infinite;}
+.orb-hint{position:absolute;top:calc(50% - 50px);transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(14px,2.8vw,18px);font-family:'Cormorant Garamond',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:600;letter-spacing:0.14em;color:rgba(255,255,255,0.95);text-shadow:0 0 14px rgba(255,255,255,0.4),0 0 24px rgba(0,0,0,0.5);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease,orb-hint-shake 2.5s ease-in-out infinite;will-change:transform;}
 .orb-hint-left{left:clamp(8px,2vw,20px);}
 .orb-hint-right{right:clamp(8px,2vw,20px);}
-@media (max-width:768px){.orb-hint{position:absolute !important;top:50% !important;left:auto !important;right:auto !important;}
+@media (max-width:768px){.orb-hint{position:absolute !important;top:50% !important;left:auto !important;right:auto !important;font-size:clamp(16px,3.5vw,22px) !important;color:rgba(255,255,255,1) !important;text-shadow:0 0 16px rgba(255,255,255,0.5),0 0 28px rgba(0,0,0,0.6) !important;}
 .orb-hint-left{left:clamp(6px,2vw,16px) !important;}
 .orb-hint-right{left:auto !important;right:clamp(6px,2vw,16px) !important;}
 }
