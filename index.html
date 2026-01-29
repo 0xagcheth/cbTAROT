@@ -1649,38 +1649,30 @@ Important: This must be a unique interpretation for this specific card spread. M
                   </div>
                 {isAllRevealed && selectedSpread === "THREE" && (
                   <div className="get-reading-container get-reading-on-table get-reading-below-table">
-                    {!aiInterpretation && !isGeneratingAI && (
-                      <button
-                        className="taro-button question-get-reading-btn"
-                        onClick={async () => {
-                          if (isPaying) return;
-                          playButtonSound();
-                          const questionRaw=(userQuestion || '').trim();
-                          const hasQuestion=questionRaw && questionRaw.length>=3;
-                          const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
-                          try {
-                            await pay(PRICE_READING);
-                            await generateCustomInterpretation(revealedIds, finalQuestion);
-                          } catch (err) {
-                            console.error("Get Reading payment or generation failed:", err);
-                          }
-                        }}
-                        disabled={isGeneratingAI || isPaying}
-                        aria-label="Get Reading"
-                      >
-                        <img src={ASSET("Assets/imagine/gr.png")} alt="Get Reading" className="get-reading-btn-img" />
-                      </button>
-                    )}
-                    {isGeneratingAI && (
+                    {isGeneratingAI ? (
                       <div className="taro-generating" style={{ color: "#ffd700" }}>
                         ✨ Generating reading...
                       </div>
-                    )}
-                    {aiInterpretation && (
+                    ) : (
                       <button
                         className="taro-button question-get-reading-btn"
-                        onClick={() => { playButtonSound(); setShowAiPanel(true); }}
-                        aria-label="Open reading"
+                        onClick={aiInterpretation
+                          ? () => { playButtonSound(); setShowAiPanel(true); }
+                          : async () => {
+                              if (isPaying) return;
+                              playButtonSound();
+                              const questionRaw=(userQuestion || '').trim();
+                              const hasQuestion=questionRaw && questionRaw.length>=3;
+                              const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
+                              try {
+                                await pay(PRICE_READING);
+                                await generateCustomInterpretation(revealedIds, finalQuestion);
+                              } catch (err) {
+                                console.error("Get Reading payment or generation failed:", err);
+                              }
+                            }}
+                        disabled={!aiInterpretation && isPaying}
+                        aria-label={aiInterpretation ? "Open reading" : "Get Reading"}
                       >
                         <img src={ASSET("Assets/imagine/gr.png")} alt="Get Reading" className="get-reading-btn-img" />
                       </button>
@@ -2166,8 +2158,8 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .question-invoke-btn{display:inline-block;padding:0;margin-top:0;line-height:0;cursor:pointer;overflow:visible;transition:transform 0.12s ease;}
 .question-invoke-btn .invoke-btn-img{display:block;width:min(43vw,171px);height:auto;vertical-align:bottom;pointer-events:none;}
 .question-invoke-btn:active{transform:scale(0.92);}
-.question-get-reading-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;width:1215px;height:431px;min-width:1215px;min-height:431px;margin-top:-15px;line-height:0;cursor:pointer;position:relative;overflow:hidden;transition:transform 0.12s ease;}
-.question-get-reading-btn .get-reading-btn-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;}
+.question-get-reading-btn{display:inline-block;padding:0;margin-top:0;line-height:0;cursor:pointer;overflow:visible;transition:transform 0.12s ease;}
+.question-get-reading-btn .get-reading-btn-img{display:block;width:min(43vw,171px);height:auto;vertical-align:bottom;pointer-events:none;}
 .question-get-reading-btn:active{transform:scale(0.92);}
 /* Get Reading: right under table at lower edge, after cards revealed */
 .get-reading-container{
@@ -2723,8 +2715,8 @@ button.taro-button.question-get-reading-btn:active{
   box-sizing: border-box !important;
 }
 
-.get-reading-container button,
-.get-reading-container .taro-button{
+.get-reading-container button:not(.question-get-reading-btn),
+.get-reading-container .taro-button:not(.question-get-reading-btn){
   width: auto !important;
   max-width: 100% !important;
   min-width: fit-content !important;
@@ -2734,14 +2726,17 @@ button.taro-button.question-get-reading-btn:active{
   letter-spacing: 0.15em !important;
   padding: clamp(0.4rem, 1.2vw, 0.8rem) clamp(1rem, 2.5vw, 1.8rem) !important;
 }
+.get-reading-container button.question-get-reading-btn{
+  padding: 0 !important;
+}
 
 /* On mobile, make Get Reading more compact */
 @media (max-width: 480px){
   .get-reading-container.get-reading-below-table{
     margin-top: clamp(10px, 2.5vh, 20px) !important;
   }
-  .get-reading-container button,
-  .get-reading-container .taro-button{
+  .get-reading-container button:not(.question-get-reading-btn),
+  .get-reading-container .taro-button:not(.question-get-reading-btn){
     padding: clamp(0.4rem, 1.2vw, 0.7rem) clamp(0.9rem, 2.2vw, 1.5rem) !important;
     font-size: clamp(0.88rem, 3.6vw, 1.05rem) !important;
     letter-spacing: 0.15em !important;
@@ -2766,14 +2761,6 @@ button.taro-button.question-get-reading-btn:active{
     width: 100% !important;
     justify-content: center !important;
     overflow: visible !important;
-  }
-  /* Увеличить кнопку Get Reading в 3 раза на мобильных */
-  .get-reading-container .question-get-reading-btn{
-    transform: scale(3) !important;
-    transform-origin: center center;
-  }
-  .get-reading-container .question-get-reading-btn:active{
-    transform: scale(2.76) !important;
   }
 }
 
