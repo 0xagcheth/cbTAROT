@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>cbTARO - Mystical Taro Reading</title>
     
     <!-- Farcaster Mini App metadata -->
@@ -1421,7 +1421,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                   </button>
                 </div>
 
-                <div className={`taro-table-wrap ${gameStage === "idle" ? "taro-table-top" : "taro-table-centered"}`}>
+                <div className={`taro-table-wrap ${gameStage === "idle" ? "taro-table-top" : "taro-table-centered"} ${(gameStage === "spread" || gameStage === "reading") && isAllRevealed ? "taro-table-cards-revealed" : ""}`}>
                   <div className={`taro-table ${gameStage === "animating" ? "table-animating" : ""}`}>
                     <div className="taro-table-content">
                       {isMainScreen && (
@@ -1560,16 +1560,28 @@ Important: This must be a unique interpretation for this specific card spread. M
                       placeholder="Ask your question..."
                       value={userQuestion}
                       onChange={(e) => setUserQuestion(e.target.value)}
+                      onBlur={() => {
+                        if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+                          window.setTimeout(() => window.scrollTo(0, 0), 100);
+                        }
+                      }}
                       maxLength={500}
                       aria-label="Your question"
                     />
                     <button
                       className="taro-button question-invoke-btn"
                       onClick={async () => {
+                        if (isLoading || !(userQuestion || '').trim()) return;
                         playButtonSound();
-                        await handleSelectSpread("THREE");
+                        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                          document.activeElement.blur();
+                        }
+                        window.requestAnimationFrame(() => {
+                          window.scrollTo(0, 0);
+                          handleSelectSpread("THREE");
+                        });
                       }}
-                      disabled={isLoading}
+                      disabled={isLoading || !(userQuestion || '').trim()}
                       aria-label="Invoke 3-card spread"
                     >
                       Invoke
@@ -1946,7 +1958,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-header p{font-size:calc(var(--p) * 0.7);color:rgba(255,255,255,0.8);margin:0;}
 .taro-hash{text-align:center;padding:1rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:1rem;color:#fff;}
 .taro-hash code{display:block;margin-top:0.5rem;font-family:'Courier New',monospace;color:#4ade80;word-break:break-all;}
-.taro-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:var(--pad) 0;min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));}
+.taro-main{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:var(--pad) 0;min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));}
 .taro-table-wrap{
   position:relative;
   transform-origin:center center;
@@ -1959,24 +1971,31 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   justify-content:center;
 }
 .taro-table-top{
-  transform:translateY(clamp(-6vh, -4vh, -1vh));
+  transform:translateY(calc(clamp(-6vh, -4vh, -1vh) - 25px));
   margin:calc(var(--pad) * 0.1) auto;
   align-items:flex-start;
   transition:transform 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);
 }
+/* Fixed position so table does not move when cards revealed / footer appears */
 .taro-table-centered{
-  transform:translateY(-150px);
+  transform:none;
   margin:0 auto;
   min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:center;
   width:100%;
   max-width:100%;
-  transition:transform 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);
+  padding-top:calc(50vh - var(--tableH) / 2 - 175px);
+  box-sizing:border-box;
+  transition:padding-top 0.75s cubic-bezier(0.33, 1, 0.68, 1), margin 0.75s cubic-bezier(0.33, 1, 0.68, 1);
 }
 .taro-table-centered .taro-table{
   margin:0;
+}
+.taro-table-centered.taro-table-cards-revealed{
+  transform:translateY(-100px) !important;
+  transition:transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
 }
 /* Question block: under table on idle screen */
 .question-block{
@@ -1984,7 +2003,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   width:100%;
   max-width:min(calc(var(--tableW) * 0.92), 420px);
   margin:clamp(16px, 4vh, 28px) auto 0;
-  margin-top:calc(clamp(16px, 4vh, 28px) - 10px);
+  margin-top:calc(clamp(16px, 4vh, 28px) - 25px);
   padding:0 var(--pad);
   display:flex;
   flex-direction:column;
@@ -2220,10 +2239,18 @@ to{transform:rotate(360deg);}
 .taro-card-keyword{font-size:0.9rem;font-style:italic;color:#4a5568;margin-bottom:0.5rem;}
 /* Back button: at bottom of table */
 .taro-footer{position:absolute;bottom:clamp(calc(var(--pad) * 0.15), calc(var(--pad) * 0.2 + var(--safe-area-inset-bottom,0) * 0.3), calc(var(--pad) * 0.3));left:50%;transform:translateX(-50%);text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(0.5rem, 2vh, 1.25rem);z-index:20;width:auto;max-width:calc(var(--tableW) - var(--pad) * 2);pointer-events:auto;}
-/* Get Reading: below table object, in main flow */
-.get-reading-below-table{margin-top:-415px;}
+/* Get Reading: below table; on mobile absolute so table stays fixed when cards revealed */
+.get-reading-below-table{margin-top:-435px;}
 @media (max-width:768px){
-.get-reading-below-table{margin-top:0;margin-bottom:clamp(16px,4vh,24px);}
+.get-reading-container.get-reading-below-table{
+  position:absolute !important;
+  bottom:calc(clamp(12px, 3vh, 24px) + 20px);
+  left:0;
+  right:0;
+  margin:0 !important;
+  margin-top:0 !important;
+  z-index:500;
+}
 }
 .taro-button{padding:clamp(0.2rem, 1vw, 1rem) clamp(0.5rem, 2.5vw, 2.5rem);font-size:clamp(0.7rem, 1.2vw, 1.2rem);background:linear-gradient(135deg,rgba(0,123,255,0.2),rgba(0,50,150,0.2),rgba(0,123,255,0.1)
  );backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.2);border-radius:9px;color:#fff;cursor:pointer;transition:all 0.3s ease;font-family:'Georgia','Times New Roman',serif;font-weight:300;letter-spacing:0.05em;box-shadow:0 8px 32px rgba(0,123,255,0.3),inset 0 1px 0 rgba(255,255,255,0.1),inset 0 -1px 0 rgba(0,0,0,0.1);}
@@ -2265,8 +2292,8 @@ to{transform:translateY(0);opacity:1;}
 .taro-header h1{font-size:1.2rem;margin:0;position:fixed !important;top:calc(8px + var(--safe-area-inset-top,0)) !important;left:0 !important;right:0 !important;width:100% !important;display:block !important;text-align:center !important;z-index:1001 !important;}
 .taro-header p{font-size:0.7rem;margin-top:0.1rem;}
 .taro-main{justify-content:center !important;}
-.taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:translateY(-150px) !important;margin:clamp(10px,6vh,48px) auto !important;}
+.taro-table-top{transform:translateY(calc(clamp(-6vh, -4vh, -1vh) - 25px)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
+.taro-table-centered{transform:none !important;margin:clamp(10px,6vh,48px) auto !important;}
 .taro-table{min-height:150px;padding:0.25rem;margin:calc(var(--pad) * 0.1) 0 !important;box-shadow:0 22px 70px rgba(0,123,255,0.38),0 10px 28px rgba(0,123,255,0.22),inset 0 0 24px rgba(255,255,255,0.05) !important;}
 .taro-table::after{inset:24% 12% 8%;filter:blur(16px);}
 .card-slot{width:var(--card-w);height:var(--card-h);}
@@ -2306,16 +2333,16 @@ to{transform:translateY(0);opacity:1;}
 .taro-card{width:var(--card-w) !important;height:var(--card-h) !important;}
 .taro-table{padding:0.15rem !important;min-height:120px !important;}
 .taro-main{min-height:300px !important;justify-content:center !important;}
-.taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:translateY(-150px) !important;margin:clamp(10px,6vh,40px) auto !important;}
+.taro-table-top{transform:translateY(calc(clamp(-6vh, -4vh, -1vh) - 25px)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
+.taro-table-centered{transform:none !important;margin:clamp(10px,6vh,40px) auto !important;}
 .taro-table{margin:calc(var(--pad) * 0.05) 0 !important;}
 }
 @media (max-height:500px) and (orientation:landscape){.control-buttons{top:calc(5px + var(--safe-area-inset-top,0)) !important;}
 .taro-header h1{font-size:1.6rem !important;top:calc(8px + var(--safe-area-inset-top,0)) !important;left:0 !important;right:0 !important;width:100% !important;display:block !important;text-align:center !important;}
 .taro-container{padding-top:calc(var(--pad) + 35px + var(--safe-area-inset-top,0)) !important;}
 .taro-main{justify-content:center !important;}
-.taro-table-top{transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
-.taro-table-centered{transform:translateY(-150px) !important;margin:clamp(8px,5vh,36px) auto !important;}
+.taro-table-top{transform:translateY(calc(clamp(-6vh, -4vh, -1vh) - 25px)) !important;margin:calc(var(--pad) * 0.1) auto !important;}
+.taro-table-centered{transform:none !important;margin:clamp(8px,5vh,36px) auto !important;}
 .taro-table{min-height:100px !important;}
 }
 [data-debug="1"] *{outline:1px solid rgba(255,0,0,0.3) !important;}
@@ -2485,10 +2512,10 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
     box-shadow:none !important;
   }
   .taro-table-top{
-    transform:translateY(clamp(-6vh, -4vh, -1vh)) !important;
+    transform:translateY(calc(clamp(-6vh, -4vh, -1vh) - 25px)) !important;
   }
   .taro-table-centered{
-    transform:translateY(-150px) !important;
+    transform:none !important;
   }
 }
 @media (max-width:420px){
@@ -2537,7 +2564,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 @media (max-width: 480px){
   .get-reading-container{
     margin-top: clamp(-6px, -12vh, 22px) !important;
-    bottom: calc(clamp(10px, 3vh, 28px) - 20px) !important;
+    bottom: calc(clamp(10px, 3vh, 28px) - 40px) !important;
   }
   .get-reading-container button,
   .get-reading-container .taro-button{
@@ -2565,7 +2592,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
     z-index: 500 !important;
     transform: none !important;
     bottom: auto !important;
-    margin: -355px auto clamp(16px, 4vh, 24px) auto !important;
+    margin: -375px auto clamp(16px, 4vh, 24px) auto !important;
     width: 100% !important;
     justify-content: center !important;
   }
