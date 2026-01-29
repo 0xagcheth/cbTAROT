@@ -27,6 +27,12 @@
         rafId = requestAnimationFrame(() => {
           const vv = window.visualViewport;
           const h = vv ? vv.height : window.innerHeight;
+          var el = document.activeElement;
+          var isQuestionInput = el && el.classList && el.classList.contains('question-textarea');
+          if (isQuestionInput && h < window.innerHeight * 0.75) {
+            rafId = null;
+            return;
+          }
           const vh = h * 0.01;
           document.documentElement.style.setProperty('--vh', `${vh}px`);
           rafId = null;
@@ -429,17 +435,17 @@
           isMainScreenRef.current=isMainScreen;
         }, [isMainScreen]);
 
-        // When returning to main screen (idle), reset scroll so layout doesn't shift when focusing input
+        // When returning to main screen (idle), reset all scroll so layout doesn't shift when focusing input
         useEffect(() => {
           if (!isMainScreen) return;
-          const id = requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              window.scrollTo(0, 0);
-              const container = document.querySelector('.taro-container');
-              if (container && typeof container.scrollTop !== 'undefined') container.scrollTop = 0;
-            });
-          });
-          return () => cancelAnimationFrame(id);
+          const t = window.setTimeout(() => {
+            window.scrollTo(0, 0);
+            if (document.documentElement) document.documentElement.scrollTop = 0;
+            if (document.body) document.body.scrollTop = 0;
+            const container = document.querySelector('.taro-container');
+            if (container && typeof container.scrollTop !== 'undefined') container.scrollTop = 0;
+          }, 120);
+          return () => clearTimeout(t);
         }, [isMainScreen]);
 
         // Ball speaks only when asked: tap on ball or shake device (no auto-show)
@@ -1585,15 +1591,12 @@ Important: This must be a unique interpretation for this specific card spread. M
                       value={userQuestion}
                       onChange={(e) => setUserQuestion(e.target.value)}
                       onFocus={() => {
-                        if (questionBlockRef.current && typeof questionBlockRef.current.scrollIntoView === 'function') {
-                          const vv = window.visualViewport;
-                          const keyboardLikelyOpen = vv && vv.height < window.innerHeight * 0.75;
-                          window.setTimeout(() => {
-                            if (questionBlockRef.current) {
-                              questionBlockRef.current.scrollIntoView({ behavior: 'smooth', block: keyboardLikelyOpen ? 'center' : 'nearest' });
-                            }
-                          }, keyboardLikelyOpen ? 300 : 0);
-                        }
+                        if (typeof window === 'undefined' || !window.matchMedia || !window.matchMedia('(max-width: 768px)').matches) return;
+                        window.setTimeout(() => {
+                          window.scrollTo(0, 0);
+                          var c = document.querySelector('.taro-container');
+                          if (c) c.scrollTop = 0;
+                        }, 0);
                       }}
                       onBlur={() => {
                         if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
@@ -1614,8 +1617,10 @@ Important: This must be a unique interpretation for this specific card spread. M
                         if (document.activeElement && typeof document.activeElement.blur === 'function') {
                           document.activeElement.blur();
                         }
+                        window.scrollTo(0, 0);
+                        var cnt = document.querySelector('.taro-container');
+                        if (cnt) cnt.scrollTop = 0;
                         window.requestAnimationFrame(() => {
-                          window.scrollTo(0, 0);
                           handleSelectSpread("THREE");
                         });
                       }}
@@ -2048,6 +2053,8 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   gap:clamp(10px, 2.5vh, 16px);
   z-index:20;
   pointer-events:auto;
+  scroll-margin:0;
+  overflow-anchor:none;
 }
 .question-caption{
   margin:0;
@@ -2076,6 +2083,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   outline:none;
   transition:border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing:border-box;
+  scroll-margin:0;
 }
 .question-textarea::placeholder{
   color:rgba(255,255,255,0.4);
