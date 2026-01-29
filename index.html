@@ -2078,10 +2078,10 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .taro-hash{text-align:center;padding:1rem;background:rgba(0,0,0,0.3);border-radius:8px;margin-bottom:1rem;color:#fff;}
 .taro-hash code{display:block;margin-top:0.5rem;font-family:'Courier New',monospace;color:#4ade80;word-break:break-all;}
 .taro-main{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:var(--pad) 0;min-height:calc(var(--vh,1vh) * 100 - var(--safe-area-inset-top,0) - var(--safe-area-inset-bottom,0));}
-.orb-hint{position:absolute;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(12.6px,2.5vw,16px);font-family:'Georgia','Times New Roman',serif;letter-spacing:0.12em;color:rgba(255,255,255,0.55);text-shadow:0 0 8px rgba(0,0,0,0.4);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease;}
+.orb-hint{position:absolute;top:calc(50% - 50px);transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(12.6px,2.5vw,16px);font-family:'Georgia','Times New Roman',serif;letter-spacing:0.12em;color:rgba(255,255,255,0.55);text-shadow:0 0 8px rgba(0,0,0,0.4);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease;}
 .orb-hint-left{left:clamp(8px,2vw,20px);}
 .orb-hint-right{right:clamp(8px,2vw,20px);}
-@media (max-width:768px){.orb-hint{position:fixed !important;top:calc(36vh + var(--safe-area-inset-top,0)) !important;left:auto !important;right:auto !important;transform:translateY(-50%) !important;}
+@media (max-width:768px){.orb-hint{position:fixed !important;top:calc(36vh + var(--safe-area-inset-top,0) - 50px) !important;left:auto !important;right:auto !important;transform:translateY(-50%) !important;}
 .orb-hint-left{left:clamp(6px,2vw,16px) !important;}
 .orb-hint-right{left:auto !important;right:clamp(6px,2vw,16px) !important;}
 }
@@ -2387,7 +2387,7 @@ to{transform:rotate(360deg);}
   left:0;
   right:0;
   margin:0 !important;
-  margin-top:clamp(12px, 3vh, 24px) !important;
+  margin-top:calc(clamp(12px, 3vh, 24px) + 15px) !important;
   transform:translateY(-440px) !important;
   z-index:500;
   display:flex;
@@ -2757,7 +2757,7 @@ button.taro-button.question-get-reading-btn:active{
 /* On mobile, make Get Reading more compact */
 @media (max-width: 480px){
   .get-reading-container.get-reading-below-table{
-    margin-top: clamp(10px, 2.5vh, 20px) !important;
+    margin-top: calc(clamp(10px, 2.5vh, 20px) + 15px) !important;
   }
   .get-reading-container button:not(.question-get-reading-btn),
   .get-reading-container .taro-button:not(.question-get-reading-btn){
@@ -2781,7 +2781,7 @@ button.taro-button.question-get-reading-btn:active{
 /* Mobile: Get Reading stays under table (position from .get-reading-below-table) */
 @media (max-width: 768px){
   .get-reading-container.get-reading-below-table{
-    margin-top: clamp(12px, 3vh, 24px) !important;
+    margin-top: calc(clamp(12px, 3vh, 24px) + 15px) !important;
     width: 100% !important;
     justify-content: center !important;
     overflow: visible !important;
