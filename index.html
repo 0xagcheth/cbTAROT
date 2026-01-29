@@ -1651,7 +1651,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                   <div className="get-reading-container get-reading-on-table get-reading-below-table">
                     {!aiInterpretation && !isGeneratingAI && (
                       <button
-                        className="custom-reading-overlay-button custom-reading-get-button"
+                        className="taro-button question-get-reading-btn"
                         onClick={async () => {
                           if (isPaying) return;
                           playButtonSound();
@@ -1668,7 +1668,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                         disabled={isGeneratingAI || isPaying}
                         aria-label="Get Reading"
                       >
-                        <span className="custom-reading-get-text">Get Reading</span>
+                        <img src={ASSET("Assets/imagine/gr.png")} alt="Get Reading" className="get-reading-btn-img" />
                       </button>
                     )}
                     {isGeneratingAI && (
@@ -1678,11 +1678,11 @@ Important: This must be a unique interpretation for this specific card spread. M
                     )}
                     {aiInterpretation && (
                       <button
-                        className="custom-reading-overlay-button custom-reading-get-button"
+                        className="taro-button question-get-reading-btn"
                         onClick={() => { playButtonSound(); setShowAiPanel(true); }}
                         aria-label="Open reading"
                       >
-                        <span className="custom-reading-get-text">Get Reading</span>
+                        <img src={ASSET("Assets/imagine/gr.png")} alt="Get Reading" className="get-reading-btn-img" />
                       </button>
                     )}
                   </div>
@@ -1731,7 +1731,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                       disabled={isLoading || !(userQuestion || '').trim()}
                       aria-label="Invoke 3-card spread"
                     >
-                      Invoke
+                      <img src={ASSET("Assets/imagine/in.png")} alt="Invoke 3-card spread" className="invoke-btn-img" />
                     </button>
                   </div>
                 )}
@@ -2068,6 +2068,10 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .orb-hint{position:absolute;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;font-size:clamp(12.6px,2.5vw,16px);font-family:'Georgia','Times New Roman',serif;letter-spacing:0.12em;color:rgba(255,255,255,0.55);text-shadow:0 0 8px rgba(0,0,0,0.4);white-space:nowrap;pointer-events:none;z-index:5;animation:orb-hint-fade 0.6s ease;}
 .orb-hint-left{left:clamp(8px,2vw,20px);}
 .orb-hint-right{right:clamp(8px,2vw,20px);}
+@media (max-width:768px){.orb-hint{position:fixed !important;top:calc(36vh + var(--safe-area-inset-top,0)) !important;left:auto !important;right:auto !important;transform:translateY(-50%) !important;}
+.orb-hint-left{left:clamp(6px,2vw,16px) !important;}
+.orb-hint-right{left:auto !important;right:clamp(6px,2vw,16px) !important;}
+}
 @keyframes orb-hint-fade{0%{opacity:0;}100%{opacity:1;}}
 .taro-table-wrap{
   position:relative;
@@ -2159,10 +2163,12 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   border-color:rgba(106,169,255,0.5);
   box-shadow:inset 0 2px 8px rgba(0,0,0,0.2), 0 0 0 2px rgba(106,169,255,0.2), 0 4px 20px rgba(0,123,255,0.18);
 }
-.question-invoke-btn{
-  min-width:140px;
-  letter-spacing:0.12em;
-}
+.question-invoke-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;min-width:192px;min-height:192px;margin-top:-15px;line-height:0;cursor:pointer;position:relative;overflow:hidden;transition:transform 0.12s ease;}
+.question-invoke-btn .invoke-btn-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;}
+.question-invoke-btn:active{transform:scale(0.92);}
+.question-get-reading-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;min-width:192px;min-height:192px;margin-top:-15px;line-height:0;cursor:pointer;position:relative;overflow:hidden;transition:transform 0.12s ease;}
+.question-get-reading-btn .get-reading-btn-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;}
+.question-get-reading-btn:active{transform:scale(0.92);}
 /* Get Reading: right under table at lower edge, after cards revealed */
 .get-reading-container{
   position:relative;
@@ -2279,7 +2285,9 @@ to{transform:rotate(360deg);}
 .custom-reading-overlay-button:hover:not(:disabled){background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);color:rgba(255,255,255,0.85);}
 .custom-reading-overlay-button:disabled{opacity:0.45;cursor:not-allowed;}
 .custom-reading-underlay-image{display:none;}
-.custom-reading-get-button{width:auto;height:auto;padding:0.6rem 2rem;gap:0.35rem;}
+.custom-reading-get-button{display:inline-block;padding:0;min-width:0;line-height:0;width:auto !important;height:auto !important;background:transparent !important;border:none !important;box-shadow:none !important;cursor:pointer;}
+.custom-reading-get-button:hover:not(:disabled){background:transparent !important;border:none !important;box-shadow:none !important;}
+.custom-reading-get-button .get-reading-btn-img{display:block;width:auto;height:auto;max-height:0.75rem;max-width:47px;object-fit:contain;vertical-align:middle;pointer-events:none;}
 .custom-reading-get-text{position:relative;z-index:1;color:rgba(255,255,255,0.85);font-family:inherit;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;font-weight:300;}
 .taro-custom-modal{max-width:500px;width:90%;}
 .taro-ai-panel{max-width:700px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:3rem 2.5rem;}
@@ -2363,7 +2371,7 @@ to{transform:rotate(360deg);}
   left:0;
   right:0;
   margin:0 !important;
-  margin-top:calc(clamp(12px, 3vh, 24px) - 400px) !important;
+  margin-top:clamp(12px, 3vh, 24px) !important;
   z-index:500;
   display:flex;
   justify-content:center;
@@ -2538,7 +2546,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 /* Buttons / clickable UI */
 .gallery-button,
 .sound-toggle-btn,
-.taro-button,
+.taro-button:not(.question-invoke-btn):not(.question-get-reading-btn),
 .custom-modal-btn,
 .taro-reading-close-btn,
 .gallery-close-btn,
@@ -2554,7 +2562,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 /* Hover polish (keep subtle, do not change layout) */
 .gallery-button:hover,
 .sound-toggle-btn:hover,
-.taro-button:hover,
+.taro-button:hover:not(.question-invoke-btn):not(.question-get-reading-btn),
 .custom-modal-btn:hover:not(:disabled),
 .taro-reading-close-btn:hover,
 .gallery-close-btn:hover,
@@ -2562,6 +2570,51 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   background: rgba(255,255,255,0.06) !important;
   border-color: rgba(255,255,255,0.22) !important;
   transform: translateY(-1px);
+}
+
+/* Invoke button: fully transparent, no border, no hover glow */
+button.taro-button.question-invoke-btn,
+button.taro-button.question-invoke-btn:hover,
+button.taro-button.question-invoke-btn:focus{
+  background: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+}
+button.taro-button.question-invoke-btn:active{
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: scale(0.92) !important;
+}
+/* Get Reading button: same as Invoke — fully transparent, no border, no hover glow */
+button.taro-button.question-get-reading-btn,
+button.taro-button.question-get-reading-btn:hover,
+button.taro-button.question-get-reading-btn:focus{
+  background: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+}
+button.taro-button.question-get-reading-btn:active{
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: scale(0.92) !important;
 }
 
 /* Modals / panels */
@@ -2684,7 +2737,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 /* On mobile, make Get Reading more compact */
 @media (max-width: 480px){
   .get-reading-container.get-reading-below-table{
-    margin-top: calc(clamp(10px, 2.5vh, 20px) - 400px) !important;
+    margin-top: clamp(10px, 2.5vh, 20px) !important;
   }
   .get-reading-container button,
   .get-reading-container .taro-button{
@@ -2708,7 +2761,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
 /* Mobile: Get Reading stays under table (position from .get-reading-below-table) */
 @media (max-width: 768px){
   .get-reading-container.get-reading-below-table{
-    margin-top: calc(clamp(12px, 3vh, 24px) - 400px) !important;
+    margin-top: clamp(12px, 3vh, 24px) !important;
     width: 100% !important;
     justify-content: center !important;
   }
@@ -2721,6 +2774,7 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   margin: 0 auto !important;
   height: auto !important;
 }
+.custom-reading-get-button{width: auto !important;min-width: auto !important;height: auto !important;}
 
 .custom-reading-underlay-image{
   width: 100% !important;
