@@ -42,6 +42,14 @@
         window.visualViewport.addEventListener('scroll', setVH);
       }
 
+      // iOS: reduce "Shake to Undo" dialog when typing in inputs (devicemotion preventDefault)
+      try {
+        window.addEventListener('devicemotion', function(e) {
+          var el = document.activeElement;
+          if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) e.preventDefault();
+        }, { passive: false });
+      } catch (_) {}
+
       // Universal asset path resolver - available globally
       (function() {
         const p=window.location.pathname || "";
@@ -419,6 +427,19 @@
 
         useEffect(() => {
           isMainScreenRef.current=isMainScreen;
+        }, [isMainScreen]);
+
+        // When returning to main screen (idle), reset scroll so layout doesn't shift when focusing input
+        useEffect(() => {
+          if (!isMainScreen) return;
+          const id = requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              window.scrollTo(0, 0);
+              const container = document.querySelector('.taro-container');
+              if (container && typeof container.scrollTop !== 'undefined') container.scrollTop = 0;
+            });
+          });
+          return () => cancelAnimationFrame(id);
         }, [isMainScreen]);
 
         // Ball speaks only when asked: tap on ball or shake device (no auto-show)
@@ -1475,8 +1496,10 @@ Important: This must be a unique interpretation for this specific card spread. M
                                 triggerOracle();
                               }}
                               onTouchEnd={(e) => {
+                                if (oracleBusy) return;
                                 e.preventDefault();
                                 e.stopPropagation();
+                                triggerOracle();
                               }}
                               aria-label="Ask the oracle"
                             />
@@ -1563,15 +1586,22 @@ Important: This must be a unique interpretation for this specific card spread. M
                       onChange={(e) => setUserQuestion(e.target.value)}
                       onFocus={() => {
                         if (questionBlockRef.current && typeof questionBlockRef.current.scrollIntoView === 'function') {
+                          const vv = window.visualViewport;
+                          const keyboardLikelyOpen = vv && vv.height < window.innerHeight * 0.75;
                           window.setTimeout(() => {
-                            questionBlockRef.current && questionBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          }, 300);
+                            if (questionBlockRef.current) {
+                              questionBlockRef.current.scrollIntoView({ behavior: 'smooth', block: keyboardLikelyOpen ? 'center' : 'nearest' });
+                            }
+                          }, keyboardLikelyOpen ? 300 : 0);
                         }
                       }}
                       onBlur={() => {
                         if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
                           window.setTimeout(() => window.scrollTo(0, 0), 100);
                         }
+                      }}
+                      onBeforeInput={(e) => {
+                        if (e.nativeEvent && e.nativeEvent.inputType === 'historyUndo') e.preventDefault();
                       }}
                       maxLength={500}
                       aria-label="Your question"
