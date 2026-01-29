@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=overlays-content" />
     <title>cbTARO - Mystical Taro Reading</title>
     
     <!-- Farcaster Mini App metadata -->
@@ -387,6 +387,7 @@
         // Payment states
         const [isPaying, setIsPaying]=useState(false);
         const [lastTx, setLastTx]=useState("");
+        const questionBlockRef=useRef(null);
         const [payError, setPayError]=useState("");
         const [sdkReady, setSdkReady]=useState(false);
         const [paymentStep, setPaymentStep]=useState(""); // for debugging: "accounts", "balance", "sendTx", "receipt"
@@ -1552,7 +1553,7 @@ Important: This must be a unique interpretation for this specific card spread. M
                 </div>
 
                 {isMainScreen && (
-                  <div className="question-block">
+                  <div className="question-block" ref={questionBlockRef}>
                     <p className="question-caption">✧ What would you like to know? ✧</p>
                     <textarea
                       className="question-textarea"
@@ -1560,6 +1561,13 @@ Important: This must be a unique interpretation for this specific card spread. M
                       placeholder="Ask your question..."
                       value={userQuestion}
                       onChange={(e) => setUserQuestion(e.target.value)}
+                      onFocus={() => {
+                        if (questionBlockRef.current && typeof questionBlockRef.current.scrollIntoView === 'function') {
+                          window.setTimeout(() => {
+                            questionBlockRef.current && questionBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          }, 300);
+                        }
+                      }}
                       onBlur={() => {
                         if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
                           window.setTimeout(() => window.scrollTo(0, 0), 100);
