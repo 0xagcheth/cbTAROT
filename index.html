@@ -2115,13 +2115,13 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   position:relative;
   width:100%;
   max-width:min(calc(var(--tableW) * 0.92), 420px);
-  margin:clamp(11px, 2.7vh, 19px) auto 0;
-  margin-top:calc(clamp(11px, 2.7vh, 19px) - 33px);
+  margin:clamp(7px, 1.8vh, 13px) auto 0;
+  margin-top:calc(clamp(7px, 1.8vh, 13px) - 22px);
   padding:0 var(--pad);
   display:flex;
   flex-direction:column;
   align-items:center;
-  gap:clamp(7px, 1.7vh, 11px);
+  gap:clamp(5px, 1.1vh, 7px);
   z-index:20;
   pointer-events:auto;
   scroll-margin:0;
@@ -2166,7 +2166,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
 .question-invoke-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;min-width:128px;min-height:128px;margin-top:-10px;line-height:0;cursor:pointer;position:relative;overflow:hidden;transition:transform 0.12s ease;}
 .question-invoke-btn .invoke-btn-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;}
 .question-invoke-btn:active{transform:scale(0.92);}
-.question-get-reading-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;min-width:192px;min-height:192px;margin-top:-15px;line-height:0;cursor:pointer;position:relative;overflow:hidden;transition:transform 0.12s ease;}
+.question-get-reading-btn{display:inline-flex;align-items:center;justify-content:center;padding:0;min-width:384px;min-height:384px;margin-top:-15px;line-height:0;cursor:pointer;position:relative;overflow:hidden;transition:transform 0.12s ease;}
 .question-get-reading-btn .get-reading-btn-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;}
 .question-get-reading-btn:active{transform:scale(0.92);}
 /* Get Reading: right under table at lower edge, after cards revealed */
@@ -2372,6 +2372,7 @@ to{transform:rotate(360deg);}
   right:0;
   margin:0 !important;
   margin-top:clamp(12px, 3vh, 24px) !important;
+  transform:translateY(-500px) !important;
   z-index:500;
   display:flex;
   justify-content:center;
