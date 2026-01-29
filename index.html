@@ -1616,47 +1616,6 @@ Important: This must be a unique interpretation for this specific card spread. M
                   </div>
                 </div>
 
-                {isAllRevealed && selectedSpread === "THREE" && (
-                  <div className="get-reading-container get-reading-on-table get-reading-below-table">
-                    {!aiInterpretation && !isGeneratingAI && (
-                      <button
-                        className="custom-reading-overlay-button custom-reading-get-button"
-                        onClick={async () => {
-                          if (isPaying) return;
-                          playButtonSound();
-                          const questionRaw=(userQuestion || '').trim();
-                          const hasQuestion=questionRaw && questionRaw.length>=3;
-                          const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
-                          try {
-                            await pay(PRICE_READING);
-                            await generateCustomInterpretation(revealedIds, finalQuestion);
-                          } catch (err) {
-                            console.error("Get Reading payment or generation failed:", err);
-                          }
-                        }}
-                        disabled={isGeneratingAI || isPaying}
-                        aria-label="Get Reading"
-                      >
-                        <span className="custom-reading-get-text">Get Reading</span>
-                      </button>
-                    )}
-                    {isGeneratingAI && (
-                      <div className="taro-generating" style={{ color: "#ffd700" }}>
-                        ✨ Generating reading...
-                      </div>
-                    )}
-                    {aiInterpretation && (
-                      <button
-                        className="custom-reading-overlay-button custom-reading-get-button"
-                        onClick={() => { playButtonSound(); setShowAiPanel(true); }}
-                        aria-label="Open reading"
-                      >
-                        <span className="custom-reading-get-text">Get Reading</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
                 {isMainScreen && (
                   <div className="question-block" ref={questionBlockRef}>
                     <p className="question-caption">✧ What would you like to know? ✧</p>
@@ -1701,6 +1660,47 @@ Important: This must be a unique interpretation for this specific card spread. M
                     >
                       Invoke
                     </button>
+                  </div>
+                )}
+
+                {isAllRevealed && selectedSpread === "THREE" && (
+                  <div className="get-reading-container get-reading-on-table get-reading-below-table">
+                    {!aiInterpretation && !isGeneratingAI && (
+                      <button
+                        className="custom-reading-overlay-button custom-reading-get-button"
+                        onClick={async () => {
+                          if (isPaying) return;
+                          playButtonSound();
+                          const questionRaw=(userQuestion || '').trim();
+                          const hasQuestion=questionRaw && questionRaw.length>=3;
+                          const finalQuestion=hasQuestion ? questionRaw : "Three-card reading";
+                          try {
+                            await pay(PRICE_READING);
+                            await generateCustomInterpretation(revealedIds, finalQuestion);
+                          } catch (err) {
+                            console.error("Get Reading payment or generation failed:", err);
+                          }
+                        }}
+                        disabled={isGeneratingAI || isPaying}
+                        aria-label="Get Reading"
+                      >
+                        <span className="custom-reading-get-text">Get Reading</span>
+                      </button>
+                    )}
+                    {isGeneratingAI && (
+                      <div className="taro-generating" style={{ color: "#ffd700" }}>
+                        ✨ Generating reading...
+                      </div>
+                    )}
+                    {aiInterpretation && (
+                      <button
+                        className="custom-reading-overlay-button custom-reading-get-button"
+                        onClick={() => { playButtonSound(); setShowAiPanel(true); }}
+                        aria-label="Open reading"
+                      >
+                        <span className="custom-reading-get-text">Get Reading</span>
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -2042,9 +2042,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   width:100%;
   max-width:100%;
   display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:flex-start;
+  justify-content:center;
 }
 .taro-table-top{
   transform:translateY(calc(clamp(-6vh, -4vh, -1vh) - 50px));
@@ -2129,7 +2127,7 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   min-width:140px;
   letter-spacing:0.12em;
 }
-/* Get Reading: directly under table lower edge, inside table wrap */
+/* Get Reading: right under table at lower edge, after cards revealed */
 .get-reading-container{
   position:relative;
   left:auto;
@@ -2140,9 +2138,8 @@ html,body{height:100%;margin:0;padding:0;padding-top:var(--safe-area-inset-top,0
   align-items:center;
   gap:10px;
   width:100%;
-  margin:clamp(10px,2vh,16px) auto 0;
+  margin:clamp(12px,4vh,24px) auto 0;
   z-index:500;
-  flex-shrink:0;
 }
 .get-reading-on-table{pointer-events:auto;}
 .taro-table{position:relative;width:var(--tableW);aspect-ratio:var(--tableAR);background:rgba(255,255,255,0.05);border-radius:50%;border:1px solid rgba(255,255,255,0.3);box-shadow:0 32px 90px rgba(0,123,255,0.45),0 12px 36px rgba(0,123,255,0.28),inset 0 0 30px rgba(255,255,255,0.05);margin:calc(var(--pad) * 0.1) auto;transition:box-shadow 0.3s ease;transform-origin:center center;transform:translateZ(0);overflow:visible;min-width:var(--tableW);max-width:var(--tableW);flex-shrink:0;will-change:transform;}
@@ -2231,6 +2228,7 @@ to{transform:rotate(360deg);}
 }
 @media (min-width:769px){.taro-main{min-height:400px;}
 .taro-reading-panel,.taro-modal,.gallery-modal{max-height:80vh;width:auto;margin:0;}
+.get-reading-container{bottom:clamp(12px,3vh,24px);}
 }
 .taro-modal h2{color:#fff;margin-bottom:0.5rem;font-size:1.2rem;}
 .taro-option{display:block;width:100%;max-width:300px;margin:1rem auto;padding:1rem 2rem;font-size:1.2rem;background:linear-gradient(135deg,rgba(0,123,255,0.15),rgba(0,50,150,0.15),rgba(0,123,255,0.1)
@@ -2319,8 +2317,19 @@ to{transform:rotate(360deg);}
 .taro-card-keyword{font-size:0.9rem;font-style:italic;color:#4a5568;margin-bottom:0.5rem;}
 /* Back button: at bottom of table */
 .taro-footer{position:absolute;bottom:clamp(calc(var(--pad) * 0.15), calc(var(--pad) * 0.2 + var(--safe-area-inset-bottom,0) * 0.3), calc(var(--pad) * 0.3));left:50%;transform:translateX(-50%);text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(0.5rem, 2vh, 1.25rem);z-index:20;width:auto;max-width:calc(var(--tableW) - var(--pad) * 2);pointer-events:auto;}
-/* Get Reading: directly under table lower edge (inside wrap) */
-.get-reading-below-table{}
+/* Get Reading: below table; on mobile absolute so table stays fixed when cards revealed */
+.get-reading-below-table{margin-top:-435px;}
+@media (max-width:768px){
+.get-reading-container.get-reading-below-table{
+  position:absolute !important;
+  bottom:calc(clamp(12px, 3vh, 24px) + 20px);
+  left:0;
+  right:0;
+  margin:0 !important;
+  margin-top:0 !important;
+  z-index:500;
+}
+}
 .taro-button{padding:clamp(0.2rem, 1vw, 1rem) clamp(0.5rem, 2.5vw, 2.5rem);font-size:clamp(0.7rem, 1.2vw, 1.2rem);background:linear-gradient(135deg,rgba(0,123,255,0.2),rgba(0,50,150,0.2),rgba(0,123,255,0.1)
  );backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.2);border-radius:9px;color:#fff;cursor:pointer;transition:all 0.3s ease;font-family:'Georgia','Times New Roman',serif;font-weight:300;letter-spacing:0.05em;box-shadow:0 8px 32px rgba(0,123,255,0.3),inset 0 1px 0 rgba(255,255,255,0.1),inset 0 -1px 0 rgba(0,0,0,0.1);}
 .taro-button:hover{background:linear-gradient(135deg,rgba(0,123,255,0.3),rgba(0,50,150,0.3),rgba(0,123,255,0.2)
@@ -2633,10 +2642,11 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   padding: clamp(0.4rem, 1.2vw, 0.8rem) clamp(1rem, 2.5vw, 1.8rem) !important;
 }
 
-/* On mobile, make Get Reading more compact; keep directly under table */
+/* On mobile, make Get Reading more compact */
 @media (max-width: 480px){
   .get-reading-container{
-    margin-top: clamp(8px, 1.5vh, 14px) !important;
+    margin-top: clamp(-6px, -12vh, 22px) !important;
+    bottom: calc(clamp(10px, 3vh, 28px) - 40px) !important;
   }
   .get-reading-container button,
   .get-reading-container .taro-button{
@@ -2657,10 +2667,16 @@ button,.gallery-card,.card-anim,.taro-deck,.taro-button,.modal-back-btn,.sound-t
   box-sizing: border-box !important;
 }
 
-/* Mobile: Get Reading stays directly under table (inside wrap) */
+/* Mobile: place Get Reading below the table, pull up into view */
 @media (max-width: 768px){
   .get-reading-container{
-    margin-top: clamp(10px, 2vh, 16px) !important;
+    position: relative !important;
+    z-index: 500 !important;
+    transform: none !important;
+    bottom: auto !important;
+    margin: -375px auto clamp(16px, 4vh, 24px) auto !important;
+    width: 100% !important;
+    justify-content: center !important;
   }
 }
 
