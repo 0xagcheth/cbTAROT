@@ -3114,6 +3114,26 @@ button.taro-button.question-get-reading-btn:active{
     height: 18px;
   }
 }
+
+/* Mobile: All taro card button — higher specificity so it always applies */
+@media (max-width: 768px) {
+  .control-buttons button.gallery-button {
+    width: 54px !important;
+    height: 54px !important;
+    min-width: 54px !important;
+    min-height: 54px !important;
+    padding: 0 !important;
+  }
+}
+@media (max-width: 480px) {
+  .control-buttons button.gallery-button {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    padding: 0 !important;
+  }
+}
     </style>
 </body>
 </html>
