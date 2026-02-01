@@ -80,14 +80,16 @@
         window.APP_BASE = (seg === "cbTAROT" || seg === "cbTARO") ? "/" + seg : "";
         
         // Unified ASSET function - always use format "Assets/..." (without public/)
+        // Encodes path segments so spaces/special chars work in URLs (e.g. ACE OF CUPS.png -> ACE%20OF%20CUPS.png)
         window.ASSET = function(path) {
           const cleanPath = path.replace(/^\/+/, '').replace(/^public\//, ''); // Remove leading slashes and "public/"
+          const encodedPath = cleanPath.split('/').map(seg => encodeURIComponent(seg)).join('/');
           // For GitHub Pages: /cbTAROT/Assets/...
           // For local file: ./Assets/...
           if (window.APP_BASE) {
-            return `${window.APP_BASE}/${cleanPath}`;
+            return `${window.APP_BASE}/${encodedPath}`;
           }
-          return `./${cleanPath}`;
+          return `./${encodedPath}`;
         };
 
         // Set CSS variables for all asset paths (replaces inline CSS injection)
@@ -152,7 +154,7 @@
       const ASSET = window.ASSET;
       
       // Card image directory - use format without "public/"
-      const CARD_IMG_DIR = "Assets/imagine/tarot_cards";
+      const CARD_IMG_DIR = "Assets/imagine/taro_cards";
       
       // Card filename corrections mapping (for actual file names on disk)
       const CARD_NAME_CORRECTIONS = {
