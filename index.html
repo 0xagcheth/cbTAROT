@@ -76,7 +76,8 @@
       (function() {
         const p=window.location.pathname || "";
         const seg=p.split("/").filter(Boolean)[0];
-        window.APP_BASE = seg === "cbTAROT" ? "/cbTAROT" : "";
+        // Support both cbTARO and cbTAROT so assets load on GitHub Pages either way
+        window.APP_BASE = (seg === "cbTAROT" || seg === "cbTARO") ? "/" + seg : "";
         
         // Unified ASSET function - always use format "Assets/..." (without public/)
         window.ASSET = function(path) {
