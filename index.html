@@ -74,22 +74,27 @@
 
       // Universal asset path resolver - available globally
       (function() {
-        const p=window.location.pathname || "";
-        const seg=p.split("/").filter(Boolean)[0];
+        const p = (window.location.pathname || "").replace(/\/$/, "");
+        const parts = p.split("/").filter(Boolean);
+        const seg = parts[0];
         // Support both cbTARO and cbTAROT so assets load on GitHub Pages either way
-        window.APP_BASE = (seg === "cbTAROT" || seg === "cbTARO") ? "/" + seg : "";
-        
+        let base = (seg === "cbTAROT" || seg === "cbTARO") ? "/" + seg : "";
+        // Fallback: on GitHub Pages if path is root or unknown, use repo name so assets still load
+        const onGitHubPages = (window.location.hostname || "").indexOf("github.io") !== -1;
+        if (!base && onGitHubPages) base = "/cbTARO";
+        window.APP_BASE = base;
+
         // Unified ASSET function - always use format "Assets/..." (without public/)
         // Encodes path segments so spaces/special chars work in URLs (e.g. ACE OF CUPS.png -> ACE%20OF%20CUPS.png)
         window.ASSET = function(path) {
-          const cleanPath = path.replace(/^\/+/, '').replace(/^public\//, ''); // Remove leading slashes and "public/"
-          const encodedPath = cleanPath.split('/').map(seg => encodeURIComponent(seg)).join('/');
-          // For GitHub Pages: /cbTAROT/Assets/...
-          // For local file: ./Assets/...
+          const cleanPath = path.replace(/^\/+/, '').replace(/^public\//, '');
+          const encodedPath = cleanPath.split('/').map(function(s){ return encodeURIComponent(s); }).join('/');
           if (window.APP_BASE) {
-            return `${window.APP_BASE}/${encodedPath}`;
+            // Absolute URL on GitHub Pages so images load in iframes / any context
+            const origin = window.location.origin || "";
+            return origin + window.APP_BASE + "/" + encodedPath;
           }
-          return `./${encodedPath}`;
+          return "./" + encodedPath;
         };
 
         // Set CSS variables for all asset paths (replaces inline CSS injection)
